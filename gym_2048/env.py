@@ -27,9 +27,12 @@ class Base2048Env(gym.Env):
       DOWN: 'down',
   }
 
-  def __init__(self, width=4, height=4):
+  def __init__(self, width=4, height=4, reward_scheme="classic"):
     self.width = width
     self.height = height
+    self.reward_scheme = reward_scheme
+
+    
 
     self.observation_space = spaces.Box(low=2,
                                         high=2**32,
@@ -50,18 +53,25 @@ class Base2048Env(gym.Env):
 
   def step(self, action: int):
     """Rotate board aligned with left action"""
+    #print(f'action {action} on Env\n{self.board} ')
 
+    
     # Align board action with left action
     rotated_obs = np.rot90(self.board, k=action)
     reward, updated_obs = self._slide_left_and_merge(rotated_obs)
-    self.board = np.rot90(updated_obs, k=4 - action)
 
-    # Place one random tile on empty location
-    self._place_random_tiles(self.board, count=1)
+    if not np.array_equal(rotated_obs, updated_obs):
+      #update the board only if a change resulted from the action
+
+      self.board = np.rot90(updated_obs, k=4 - action)
+      # Place one random tile on empty location
+      self._place_random_tiles(self.board, count=1)
 
     done = self.is_done()
 
-    return self.board, reward, done, {}
+    #print(f'Result of action\n{self.board}')
+
+    return self.board.copy(), reward, done, {"max_block" : np.max(self.board), "end_value": np.sum(self.board)}
 
   def is_done(self):
     copy_board = self.board.copy()
@@ -86,10 +96,54 @@ class Base2048Env(gym.Env):
 
     return self.board
 
+  def is_action_possible(self, action: int):
+    cp_board = self.board.copy()# probably not needed
+    # https://numpy.org/doc/stable/reference/generated/numpy.rot90.html
+    rotated_obs = np.rot90(cp_board, k=action)
+    reward, merged_rotated_board = self._slide_left_and_merge(rotated_obs)
+    
+    if np.array_equal(rotated_obs, merged_rotated_board):
+      return False
+
+    return True
+
+# TODO fix this issue with the function is_action_possible
+# in this example the move left should be impossible
+# print(
+#   f'Is action possible? {env.env_method(method_name="is_action_possible",indices=[index], action = i)}'
+# )
+
+# board {'line0': '8 32 16 2', 'line1': '2 16 4 2', 'line2': '16 2 0 0', 'line3': '8 4 2 0'}
+# Is action possible? [True]
+# Is action possible? [True]
+# Is action possible? [True]
+# Is action possible? [True]
+
+  
+
+  def return_board(self):
+    return self.board.copy()
+
   def render(self, mode='human'):
     if mode == 'human':
       for row in self.board.tolist():
         print(' \t'.join(map(str, row)))
+    if mode == 'dict':
+      board = self.board
+      dictionary = dict()
+      dictionary[
+          "line0"
+      ] = f"{board[0,0]} {board[0,1]} {board[0,2]} {board[0,3]}"
+      dictionary[
+          "line1"
+      ] = f"{board[1,0]} {board[1,1]} {board[1,2]} {board[1,3]}"
+      dictionary[
+          "line2"
+      ] = f"{board[2,0]} {board[2,1]} {board[2,2]} {board[2,3]}"
+      dictionary[
+          "line3"
+      ] = f"{board[3,0]} {board[3,1]} {board[3,2]} {board[3,3]}"
+      return dictionary
 
   def _sample_tiles(self, count=1):
     """Sample tile 2 or 4."""
@@ -133,17 +187,30 @@ class Base2048Env(gym.Env):
                    'constant', constant_values=(0,))
       result.append(row)
 
-    return score, np.array(result, dtype=np.int64)
+    result_board = np.array(result, dtype=np.int64)
 
-  @staticmethod
-  def _try_merge(row):
+
+    if self.reward_scheme == "encourage_empty" or self.reward_scheme == "merge_counts_encourage_empty":
+      score += result_board.size - np.count_nonzero(result_board)
+
+    if np.array_equal(board, result_board):
+      score = -1
+      #moves without any changes
+
+    return score, result_board
+
+  
+  def _try_merge(self, row):
     score = 0
     result_row = []
 
     i = 1
     while i < len(row):
       if row[i] == row[i - 1]:
-        score += row[i] + row[i - 1]
+        if self.reward_scheme == "merge_counts":
+          score += 1
+        else:
+          score += row[i] + row[i - 1]
         result_row.append(row[i] + row[i - 1])
         i += 2
       else:
@@ -154,3 +221,11 @@ class Base2048Env(gym.Env):
       result_row.append(row[i - 1])
 
     return score, result_row
+
+  @staticmethod
+  def action_names():
+   return { 0: "LEFT", 1: "UP", 2: "RIGHT", 3:"DOWN"}
+
+  @staticmethod
+  def get_reward_schemes():
+    return ['encourage_empty', 'classic','merge_counts_encourage_empty']
