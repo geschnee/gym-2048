@@ -23,7 +23,7 @@ with open('README.rst') as f:
 
 #trigger test
 setup(name='gym-2048-extended',
-      description='OpenAI Gym Environment for 2048',
+      description='OpenAI Gym Environment for 2048 extended functionality',
       long_description=README,
       long_description_content_type='text/x-rst',
       version='1.1',
