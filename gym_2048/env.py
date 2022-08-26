@@ -65,7 +65,8 @@ class Base2048Env(gym.Env):
 
       self.board = np.rot90(updated_obs, k=4 - action)
       # Place one random tile on empty location
-      self._place_random_tiles(self.board, count=1)
+      self._place_random_tiles(self.board, count=1) 
+      # since count is always 1 and we did an action, there should never be an issue
 
     done = self.is_done()
 
@@ -171,7 +172,13 @@ class Base2048Env(gym.Env):
     if not board.all():
       tiles = self._sample_tiles(count)
       tile_locs = self._sample_tile_locations(board, count)
+      print(f'tile_locs {tile_locs}')
+      print(f'board {board}')
+      print(f'board[tile_locs] {board[tile_locs]}')
       board[tile_locs] = tiles
+
+    else:
+      raise Exception("Board is full.")
 
   def _slide_left_and_merge(self, board):
     """Slide tiles on a grid to the left and merge."""
