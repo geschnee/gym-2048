@@ -164,18 +164,45 @@ class Base2048Env(gym.Env):
     zero_indices = self.np_random.choice(
         len(zero_locs), size=count)
 
+    #print(f'zero_locs {zero_locs}')
+    #print(f'zero_indices {zero_indices}')
+
     zero_pos = zero_locs[zero_indices]
-    zero_pos = list(zip(*zero_pos))
-    return zero_pos
+
+    #print(f'zero_pos {zero_pos}')
+    #print(f'shape {zero_pos.shape}')
+    #zero_pos = list(zip(*zero_pos))
+    #print(f'zipped zero_pos {zero_pos}')
+    #raise NotImplementedError
+
+
+    t = np.transpose(zero_pos)
+    #print(f't {t}')
+    #print(f't shape {t.shape}')
+
+
+    #x = [zero_pos[0, 0], zero_pos[1, 0]]
+    #y = [zero_pos[0, 1], zero_pos[1, 1]]
+
+    
+
+    #zero_pos = [x, y]
+
+    #print(f'my zero_pos {zero_pos}')
+    #print(f'shape {zero_pos.shape}')
+    return t #zero_pos
 
   def _place_random_tiles(self, board, count=1):
     if not board.all():
       tiles = self._sample_tiles(count)
       tile_locs = self._sample_tile_locations(board, count)
+
+
       print(f'tile_locs {tile_locs}')
       print(f'board {board}')
       print(f'board[tile_locs] {board[tile_locs]}')
-      board[tile_locs] = tiles
+      board[tile_locs[0], tile_locs[1]] = tiles
+      #tile_locs[0] is the x indices and tile_locs[1] is the y indices
 
     else:
       raise Exception("Board is full.")
