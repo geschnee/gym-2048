@@ -1,4 +1,8 @@
 
+# TODO
+merge this readme into readme.rst
+
+
 basically this repo:
 
 https://github.com/activatedgeek/gym-2048
