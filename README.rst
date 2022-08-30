@@ -95,7 +95,7 @@ OpenAI ``gym.Env``.
 
 
     if __name__ == '__main__':
-      env = gym.make('2048-extended')
+      env = gym.make('2048-extended-v1')
       env.seed(42)
 
       env.reset()

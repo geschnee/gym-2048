@@ -11,7 +11,7 @@ register(
 )
 
 register(
-    id='2048-extended',
+    id='2048-extended-v1',
     entry_point='gym_2048.env:Base2048Env',
     kwargs={
         'width': 4,
