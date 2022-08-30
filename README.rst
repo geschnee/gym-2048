@@ -81,6 +81,7 @@ Use the arrow keys to play, ``q`` and ``n`` can be used to quit the game or rest
 The game serves as a demo, the different reward schemes and step function can be explored.
 
 .. code:: shell
+  
     python gym_2048/game.py
 
 .. image:: pygame.png
