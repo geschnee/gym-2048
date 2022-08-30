@@ -7,7 +7,7 @@ import pytest
 
 # python -m pytest test.py
 
-# mit Output:
+# with Output:
 # python -m pytest test.py -s
 
 def test_is_done():
@@ -197,10 +197,6 @@ def test_possible_action_change():
         assert not np.array_equal(e.board, b), f'There was no change'
 
 
-
-    pass
-
-
 #helper functions
 
 def get_impossible_board():
@@ -208,3 +204,28 @@ def get_impossible_board():
 
 def reward_schemes():
     return env.Base2048Env.get_reward_schemes()
+
+
+
+def test_numpy_rot90():
+    # this test checks if np.rot90(board, k=i) modifies the board
+    # it should not change the board
+
+    compare_board = np.array([[2, 4, 8, 16], [16, 8, 4, 2], [2, 4, 8, 16], [16, 8, 4, 0]])
+    for i in range(4):
+        board = np.array([[2, 4, 8, 16], [16, 8, 4, 2], [2, 4, 8, 16], [16, 8, 4, 0]])
+        rotated = np.rot90(board, k=i)
+        assert np.array_equal(board, compare_board)
+        if i != 0:
+            assert not np.array_equal(rotated, compare_board)
+
+def test_is_action_possible_no_change():
+    # this test checks if the is_action_possible function changes the board
+    e = env.Base2048Env()
+
+    boards = [np.array([[4, 2, 0, 2], [2, 4, 2, 0], [4, 2, 4, 0], [2, 4, 2, 0]])]
+
+    for b in boards:
+        e.board = np.copy(b)
+        assert e.is_action_possible(0)
+        assert np.array_equal(e.board, b), f'There was an unexpected change'

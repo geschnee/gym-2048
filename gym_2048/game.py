@@ -1,7 +1,6 @@
 import pygame as pg
 import sys
 import env
-import numpy as np
 
 def render_game(screen, engine):
 
@@ -10,7 +9,6 @@ def render_game(screen, engine):
             i = 3-i
             j = 3-j
             value = engine.board[j,i]
-            print(f'value {value}')
 
             color = colours[value]
             
@@ -84,11 +82,7 @@ turn = 0
 done = False
 while go:
 
-    #print(f'pressed keys: {pg.key.get_pressed()}')
-
-    # keys http://www.pg.org/docs/ref/key.html
-    if pg.key.get_pressed()[pg.K_q]: #pg.key.key_code("q")
-        print(f'{pg.key.key_code("q")} pressed')
+    if pg.key.get_pressed()[pg.K_q]:
         sys.exit()
 
     for event in pg.event.get():
@@ -126,8 +120,6 @@ while go:
         turn +=1
 
         engine.render()
-        print(f'reward: {reward}')
-        print(f'rewardsum: {rewardsum}')
 
     if newgame:
         #new game
@@ -135,12 +127,9 @@ while go:
         rewardsum=0
         scoring_metric="classic"
         last_action="New Game"
-        print(f'reset game')
         newgame= False
         reward = ""
         turn = 0
-
-    
 
     #render
     screen.fill((235, 97, 52))
@@ -169,6 +158,5 @@ while go:
     pg.display.update()
     clock.tick(60)
 
-# programmier startzeit 15:37-16:40
-
-# 17:09-18:13
+# time it took to program this file:
+# 2h 7m

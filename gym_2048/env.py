@@ -70,8 +70,9 @@ class Base2048Env(gym.Env):
 
     done = self.is_done()
 
-    #print(f'Result of action\n{self.board}')
 
+
+    # board.copy() is returned because of an error/incompatibility with Salina https://github.com/facebookresearch/salina
     return self.board.copy(), reward, done, {"max_block" : np.max(self.board), "end_value": np.sum(self.board)}
 
   def is_done(self):
@@ -98,29 +99,15 @@ class Base2048Env(gym.Env):
     return self.board
 
   def is_action_possible(self, action: int):
-    cp_board = self.board.copy()# probably not needed
-    # https://numpy.org/doc/stable/reference/generated/numpy.rot90.html
-    rotated_obs = np.rot90(cp_board, k=action)
-    reward, merged_rotated_board = self._slide_left_and_merge(rotated_obs)
     
+    rotated_obs = np.rot90(self.board, k=action)
+    _, merged_rotated_board = self._slide_left_and_merge(rotated_obs)
+
     if np.array_equal(rotated_obs, merged_rotated_board):
       return False
 
+
     return True
-
-# TODO fix this issue with the function is_action_possible
-# in this example the move left should be impossible
-# print(
-#   f'Is action possible? {env.env_method(method_name="is_action_possible",indices=[index], action = i)}'
-# )
-
-# board {'line0': '8 32 16 2', 'line1': '2 16 4 2', 'line2': '16 2 0 0', 'line3': '8 4 2 0'}
-# Is action possible? [True]
-# Is action possible? [True]
-# Is action possible? [True]
-# Is action possible? [True]
-
-  
 
   def return_board(self):
     return self.board.copy()
@@ -175,11 +162,7 @@ class Base2048Env(gym.Env):
       tiles = self._sample_tiles(count)
       tile_locs = self._sample_tile_locations(board, count)
 
-
-      print(f'tile_locs {tile_locs}')
-      print(f'board {board}')
-      print(f'board[tile_locs] {board[tile_locs]}')
-      board[tile_locs[0], tile_locs[1]] = tiles
+      board[(tile_locs[0], tile_locs[1])] = tiles
       #tile_locs[0] is the x indices and tile_locs[1] is the y indices
 
     else:
