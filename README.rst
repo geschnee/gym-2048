@@ -29,7 +29,7 @@ From cloned repository
 ^^^^^^^^^^^^^^^^^^^^^^
 
 .. code:: shell
-  
+
     python setup.py install
 
 
@@ -83,6 +83,8 @@ The game serves as a demo, the different reward schemes and step function can be
 .. code:: shell
     python gym_2048/game.py
 
+.. image:: pygame.png
+   :width: 600
 
 
 Basic Demo
