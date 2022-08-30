@@ -9,6 +9,7 @@ This package implements the classic grid game 2048
 for OpenAI gym environment. 
 
 Summarizing my changes to the repo `Activated Geek Gym 2048 <https://github.com/activatedgeek/gym-2048>`_:
+
 - changed the requirements.txt to be more flexible
 - added the method ``is_action_possible``
 - added different reward schemes
@@ -66,6 +67,7 @@ Rendering
 ^^^^^^^^^^
 
 Currently 2 rendering modes are implemented
+
 - basic print rendering (``mode='human'``)
 - dict rendering (``mode='dict'``) returns a dictionary with the board state
 
