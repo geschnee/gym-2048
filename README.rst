@@ -9,11 +9,11 @@ This package implements the classic grid game 2048
 for OpenAI gym environment. 
 
 Summarizing my changes to the repo `Activated Geek Gym 2048 <https://github.com/activatedgeek/gym-2048>`_:
-* changed the requirements.txt to be more flexible
-* added the method ``is_action_possible``
-* added different reward schemes
-* added the render mode ``dict``
-* added ``game.py`` a PyGame that uses the GymEnvironment from this repo
+- changed the requirements.txt to be more flexible
+- added the method ``is_action_possible``
+- added different reward schemes
+- added the render mode ``dict``
+- added ``game.py`` a PyGame that uses the GymEnvironment from this repo
 
 Install
 -------
@@ -66,8 +66,8 @@ Rendering
 ^^^^^^^^^^
 
 Currently 2 rendering modes are implemented
-* basic print rendering (``mode='human'``)
-* dict rendering (``mode='dict'``) returns a dictionary with the board state
+- basic print rendering (``mode='human'``)
+- dict rendering (``mode='dict'``) returns a dictionary with the board state
 
 Usage
 ------
@@ -81,7 +81,7 @@ Use the arrow keys to play, ``q`` and ``n`` can be used to quit the game or rest
 The game serves as a demo, the different reward schemes and step function can be explored.
 
 .. code:: shell
-  
+
     python gym_2048/game.py
 
 .. image:: pygame.png
