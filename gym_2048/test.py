@@ -229,3 +229,5 @@ def test_is_action_possible_no_change():
         e.board = np.copy(b)
         assert e.is_action_possible(0)
         assert np.array_equal(e.board, b), f'There was an unexpected change'
+
+

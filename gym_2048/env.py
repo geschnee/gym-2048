@@ -27,11 +27,11 @@ class Base2048Env(gym.Env):
       DOWN: 'down',
   }
 
-  def __init__(self, width=4, height=4, reward_scheme="classic"):
+  def __init__(self, width=4, height=4, reward_scheme="classic", only_2s=False):
     self.width = width
     self.height = height
     self.reward_scheme = reward_scheme
-
+    self.only_2s = only_2s
     
 
     self.observation_space = spaces.Box(low=2,
@@ -135,6 +135,9 @@ class Base2048Env(gym.Env):
 
   def _sample_tiles(self, count=1):
     """Sample tile 2 or 4."""
+
+    if self.only_2s:
+      return [2] * count
 
     choices = [2, 4]
     probs = [0.9, 0.1]
