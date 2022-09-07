@@ -5,6 +5,9 @@ import numpy as np
 
 import pytest
 
+from gym.utils.env_checker import check_env
+
+
 # python -m pytest test.py
 
 # with Output:
@@ -230,4 +233,6 @@ def test_is_action_possible_no_change():
         assert e.is_action_possible(0)
         assert np.array_equal(e.board, b), f'There was an unexpected change'
 
-
+def test_env_check():
+    e = env.Base2048Env()
+    check_env(e) #this checks if the environment adheres to the gym interface

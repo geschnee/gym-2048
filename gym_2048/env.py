@@ -34,7 +34,7 @@ class Base2048Env(gym.Env):
     self.only_2s = only_2s
     
 
-    self.observation_space = spaces.Box(low=2,
+    self.observation_space = spaces.Box(low=0,
                                         high=2**32,
                                         shape=(self.width, self.height),
                                         dtype=np.int64)
@@ -96,11 +96,16 @@ class Base2048Env(gym.Env):
     return True
 
 
-  def reset(self):
+  def reset(self, seed=None, **kwargs):
     """Place 2 tiles on empty board."""
+    super().reset(seed=seed)
 
     self.board = np.zeros((self.width, self.height), dtype=np.int64)
     self._place_random_tiles(self.board, count=2)
+
+    if 'return_info' in kwargs and kwargs['return_info']:
+      # return_info parameter is included and true
+      return self.board, {"max_block" : np.max(self.board), "end_value": np.sum(self.board)}
 
     return self.board
 
