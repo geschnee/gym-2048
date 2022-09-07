@@ -103,7 +103,7 @@ OpenAI ``gym.Env``.
 
 
     if __name__ == '__main__':
-      env = gym.make('2048-extended-v1')
+      env = gym.make('2048-extended-v2')
       env.seed(42)
 
       env.reset()
@@ -113,7 +113,7 @@ OpenAI ``gym.Env``.
       moves = 0
       while not done:
         action = env.np_random.choice(range(4), 1).item()
-        next_state, reward, done, info = env.step(action)
+        next_state, reward, done, _, info = env.step(action)
         moves += 1
 
         print('Next Action: "{}"\n\nReward: {}'.format(
