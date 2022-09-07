@@ -6,7 +6,7 @@ from gym.utils import seeding
 
 class Base2048Env(gym.Env):
   metadata = {
-      'render.modes': ['human', 'dict'],
+      'render_modes': ['human', 'dict'],
   }
 
   ##
