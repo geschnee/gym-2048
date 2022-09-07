@@ -68,12 +68,18 @@ class Base2048Env(gym.Env):
       self._place_random_tiles(self.board, count=1) 
       # since count is always 1 and we did an action, there should never be an issue
 
-    done = self.is_done()
+    terminated = self.is_done()
 
+  
+    
+    # change the returned tuple to match the new gym step API
+    # https://www.gymlibrary.dev/content/api/#stepping
+
+    # done was split into "terminated" and "truncated"
 
 
     # board.copy() is returned because of an error/incompatibility with Salina https://github.com/facebookresearch/salina
-    return self.board.copy(), reward, done, {"max_block" : np.max(self.board), "end_value": np.sum(self.board)}
+    return self.board.copy(), reward, terminated, False, {"max_block" : np.max(self.board), "end_value": np.sum(self.board)}
 
   def is_done(self):
     copy_board = self.board.copy()
