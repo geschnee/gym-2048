@@ -35,7 +35,7 @@ class Base2048Env(gym.Env):
     
 
     self.observation_space = spaces.Box(low=0,
-                                        high=2**32,
+                                        high=2**14,
                                         shape=(self.width, self.height),
                                         dtype=np.int64)
     self.action_space = spaces.Discrete(4)
@@ -130,7 +130,7 @@ def _log_success_callback(self, locals_: Dict[str, Any], globals_: Dict[str, Any
       # return_info parameter is included and true
       return self.board, {"max_block" : np.max(self.board), "end_value": np.sum(self.board)}
 
-    return self.board
+    return self.board, {}
 
   def is_action_possible(self, action: int):
     
@@ -142,6 +142,15 @@ def _log_success_callback(self, locals_: Dict[str, Any], globals_: Dict[str, Any
 
 
     return True
+
+  def possible_actions(self):
+    possible_actions = []
+
+    for i in range(4):
+      if self.is_action_possible(i):
+        possible_actions.append(i)
+    
+    return possible_actions
 
   def return_board(self):
     return self.board.copy()
