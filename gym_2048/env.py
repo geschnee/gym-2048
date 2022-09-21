@@ -52,10 +52,8 @@ class Base2048Env(gym.Env):
     return [seed]
 
   def step(self, action: int):
-    """Rotate board aligned with left action"""
-    #print(f'action {action} on Env\n{self.board} ')
+    """Perform step, return observation, reward, terminated, false, info."""
 
-    
     # Align board action with left action
     rotated_obs = np.rot90(self.board, k=action)
     reward, updated_obs = self._slide_left_and_merge(rotated_obs)
@@ -69,40 +67,14 @@ class Base2048Env(gym.Env):
       # since count is always 1 and we did an action, there should never be an issue
 
     terminated = self.is_done()
-
-  
     
     # change the returned tuple to match the new gym step API
     # https://www.gymlibrary.dev/content/api/#stepping
 
     # done was split into "terminated" and "truncated"
 
-
     # board.copy() is returned because of an error/incompatibility with Salina https://github.com/facebookresearch/salina
     return self.board.copy(), reward, terminated, False, {"max_block" : np.max(self.board), "end_value": np.sum(self.board), "is_success": np.max(self.board) >= 2048}
-
-# TODO check if we should also return *is_success*
-
-    '''
-    from stable baselines 3 callbacks.py
-  
-def _log_success_callback(self, locals_: Dict[str, Any], globals_: Dict[str, Any]) -> None:
-        """
-        Callback passed to the  ``evaluate_policy`` function
-        in order to log the success rate (when applicable),
-        for instance when using HER.
-
-        :param locals_:
-        :param globals_:
-        """
-        info = locals_["info"]
-
-        if locals_["done"]:
-            maybe_is_success = info.get("is_success")
-            if maybe_is_success is not None:
-                self._is_success_buffer.append(maybe_is_success)
-'''
-
 
   def is_done(self):
     copy_board = self.board.copy()
