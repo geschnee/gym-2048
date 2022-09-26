@@ -27,11 +27,14 @@ class Base2048Env(gym.Env):
       DOWN: 'down',
   }
 
-  def __init__(self, width=4, height=4, reward_scheme="classic", only_2s=False):
+  def __init__(self, width=4, height=4, reward_scheme="classic", only_2s=False, punish_illegal_move=True):
     self.width = width
     self.height = height
+
+    assert reward_scheme in self.get_reward_schemes()
     self.reward_scheme = reward_scheme
     self.only_2s = only_2s
+    self.punish_illegal_move = punish_illegal_move
     
 
     self.observation_space = spaces.Box(low=0,
@@ -66,15 +69,19 @@ class Base2048Env(gym.Env):
       self._place_random_tiles(self.board, count=1) 
       # since count is always 1 and we did an action, there should never be an issue
 
+    if self.reward_scheme == "triplet":
+      if reward > 0:
+        reward = 1
+      if reward < 0:
+        reward = -1
+
     terminated = self.is_done()
-    
+    # board.copy() is returned because of an error/incompatibility with Salina https://github.com/facebookresearch/salina
+    return self.board.copy(), reward, terminated, False, {"max_block" : np.max(self.board), "end_value": np.sum(self.board), "is_success": np.max(self.board) >= 2048}
     # change the returned tuple to match the new gym step API
     # https://www.gymlibrary.dev/content/api/#stepping
 
     # done was split into "terminated" and "truncated"
-
-    # board.copy() is returned because of an error/incompatibility with Salina https://github.com/facebookresearch/salina
-    return self.board.copy(), reward, terminated, False, {"max_block" : np.max(self.board), "end_value": np.sum(self.board), "is_success": np.max(self.board) >= 2048}
 
   def is_done(self):
     copy_board = self.board.copy()
@@ -206,7 +213,7 @@ class Base2048Env(gym.Env):
     if self.reward_scheme == "encourage_empty" or self.reward_scheme == "merge_counts_encourage_empty":
       score += result_board.size - np.count_nonzero(result_board)
 
-    if np.array_equal(board, result_board):
+    if self.punish_illegal_move and np.array_equal(board, result_board):
       score = -1
       #moves without any changes
 
@@ -241,4 +248,4 @@ class Base2048Env(gym.Env):
 
   @staticmethod
   def get_reward_schemes():
-    return ['encourage_empty', 'classic','merge_counts_encourage_empty']
+    return ['encourage_empty', 'classic','merge_counts_encourage_empty', 'merge_counts', 'triplet']
