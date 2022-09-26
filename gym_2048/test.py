@@ -1,11 +1,14 @@
 
 
+import re
 import env
 import numpy as np
 
 import pytest
 
 from gym.utils.env_checker import check_env
+
+from gym_2048.env import Base2048Env
 
 
 # python -m pytest test.py
@@ -236,3 +239,21 @@ def test_is_action_possible_no_change():
 def test_env_check():
     e = env.Base2048Env()
     check_env(e) #this checks if the environment adheres to the gym interface
+
+def test_reward_scheme_max_merge():
+    #max_merge
+    e = env.Base2048Env(reward_scheme=Base2048Env.REWARD_SCHEME_MAX_MERGE)
+
+    boards = [np.array([[4, 2, 0, 2], [2, 4, 2, 0], [0, 0, 0, 0], [0, 0, 0, 0]]),
+        np.array([[4, 0, 0, 4], [2, 4, 2, 0], [0, 0, 0, 0], [0, 0, 0, 0]]),
+        np.array([[4, 16, 0, 16], [2, 4, 2, 0], [0, 0, 0, 0], [0, 0, 0, 0]]),
+        np.array([[0, 2, 0, 2], [2, 64, 64, 0], [0, 0, 0, 0], [0, 0, 0, 0]]),
+        np.array([[0, 64, 0, 64], [0, 64, 64, 0], [0, 0, 0, 0], [0, 0, 0, 0]])]
+    rewards = [4, 8, 32, 128, 128]
+
+    for b, r in zip(boards, rewards):
+        e.board = np.copy(b)
+        assert e.is_action_possible(0)
+
+        obs, reward, _, _, _ = e.step(0)
+        assert reward == r

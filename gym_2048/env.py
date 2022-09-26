@@ -27,7 +27,22 @@ class Base2048Env(gym.Env):
       DOWN: 'down',
   }
 
-  def __init__(self, width=4, height=4, reward_scheme="classic", only_2s=False, punish_illegal_move=True):
+  REWARD_SCHEME_CLASSIC = "classic"
+  REWARD_SCHEME_MAX_MERGE = "max_merge"
+  REWARD_SCHEME_TRIPLET = "triplet"
+  REWARD_SCHEME_ENCOURAGE_EMPTY = "encourage_empty"
+  REWARD_SCHEME_MERGE_COUNTS_ENCOURAGE_EMPTY = "merge_counts_encourage_empty"
+  REWARD_SCHEME_MERGE_COUNTS = "merge_counts"
+
+  @staticmethod
+  def action_names():
+   return { 0: "LEFT", 1: "UP", 2: "RIGHT", 3:"DOWN"}
+
+  @staticmethod
+  def get_reward_schemes():
+    return [Base2048Env.REWARD_SCHEME_CLASSIC, Base2048Env.REWARD_SCHEME_ENCOURAGE_EMPTY,Base2048Env.REWARD_SCHEME_MERGE_COUNTS_ENCOURAGE_EMPTY, Base2048Env.REWARD_SCHEME_MERGE_COUNTS, Base2048Env.REWARD_SCHEME_TRIPLET, Base2048Env.REWARD_SCHEME_MAX_MERGE]
+
+  def __init__(self, width=4, height=4, reward_scheme=REWARD_SCHEME_CLASSIC, only_2s=False, punish_illegal_move=True):
     self.width = width
     self.height = height
 
@@ -69,11 +84,6 @@ class Base2048Env(gym.Env):
       self._place_random_tiles(self.board, count=1) 
       # since count is always 1 and we did an action, there should never be an issue
 
-    if self.reward_scheme == "triplet":
-      if reward > 0:
-        reward = 1
-      if reward < 0:
-        reward = -1
 
     terminated = self.is_done()
     # board.copy() is returned because of an error/incompatibility with Salina https://github.com/facebookresearch/salina
@@ -198,39 +208,51 @@ class Base2048Env(gym.Env):
 
     result = []
 
-    score = 0
+    merges = []
     for row in board:
       row = np.extract(row > 0, row)
-      score_, result_row = self._try_merge(row)
-      score += score_
+      merges_, result_row = self._try_merge(row)
+      merges.extend(merges_)
       row = np.pad(np.array(result_row), (0, self.width - len(result_row)),
                    'constant', constant_values=(0,))
       result.append(row)
 
     result_board = np.array(result, dtype=np.int64)
 
+    #default score
+    score = sum(merges)
 
-    if self.reward_scheme == "encourage_empty" or self.reward_scheme == "merge_counts_encourage_empty":
+    if self.reward_scheme == self.REWARD_SCHEME_MAX_MERGE:
+      score = max(merges) if len(merges)>0 else 0
+
+    if self.reward_scheme == self.REWARD_SCHEME_MERGE_COUNTS:
+      score = len(merges)
+
+    if self.reward_scheme == self.REWARD_SCHEME_ENCOURAGE_EMPTY or self.reward_scheme == self.REWARD_SCHEME_MERGE_COUNTS_ENCOURAGE_EMPTY:
       score += result_board.size - np.count_nonzero(result_board)
 
     if self.punish_illegal_move and np.array_equal(board, result_board):
       score = -1
       #moves without any changes
 
+    
+    if self.reward_scheme == self.REWARD_SCHEME_TRIPLET:
+      if score > 0:
+        score = 1
+      if score < 0:
+        score = -1
+
     return score, result_board
 
   
   def _try_merge(self, row):
-    score = 0
+    merges = []
     result_row = []
 
     i = 1
     while i < len(row):
       if row[i] == row[i - 1]:
-        if self.reward_scheme == "merge_counts":
-          score += 1
-        else:
-          score += row[i] + row[i - 1]
+        merges.append(row[i] + row[i - 1])
         result_row.append(row[i] + row[i - 1])
         i += 2
       else:
@@ -240,12 +262,4 @@ class Base2048Env(gym.Env):
     if i == len(row):
       result_row.append(row[i - 1])
 
-    return score, result_row
-
-  @staticmethod
-  def action_names():
-   return { 0: "LEFT", 1: "UP", 2: "RIGHT", 3:"DOWN"}
-
-  @staticmethod
-  def get_reward_schemes():
-    return ['encourage_empty', 'classic','merge_counts_encourage_empty', 'merge_counts', 'triplet']
+    return merges, result_row
