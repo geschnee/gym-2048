@@ -257,3 +257,21 @@ def test_reward_scheme_max_merge():
 
         obs, reward, _, _, _ = e.step(0)
         assert reward == r
+
+def test_reward_scheme_classic():
+    #max_merge
+    e = env.Base2048Env(reward_scheme=Base2048Env.REWARD_SCHEME_CLASSIC)
+
+    boards = [np.array([[4, 2, 0, 2], [2, 4, 4, 0], [0, 0, 0, 0], [0, 0, 0, 0]]),
+        np.array([[4, 0, 0, 4], [2, 4, 2, 0], [0, 0, 0, 0], [0, 0, 0, 0]]),
+        np.array([[4, 16, 0, 16], [2, 4, 2, 0], [0, 0, 0, 0], [0, 0, 0, 0]]),
+        np.array([[0, 2, 0, 2], [2, 64, 64, 0], [0, 0, 0, 0], [0, 0, 0, 0]]),
+        np.array([[0, 64, 0, 64], [0, 64, 64, 0], [0, 0, 0, 0], [0, 0, 0, 0]])]
+    rewards = [12, 8, 32, 132, 256]
+
+    for b, r in zip(boards, rewards):
+        e.board = np.copy(b)
+        assert e.is_action_possible(0)
+
+        obs, reward, _, _, _ = e.step(0)
+        assert reward == r
