@@ -87,11 +87,12 @@ class Base2048Env(gym.Env):
 
     terminated = self.is_done()
     # board.copy() is returned because of an error/incompatibility with Salina https://github.com/facebookresearch/salina
-    return self.board.copy(), reward, terminated, False, {"max_block" : np.max(self.board), "end_value": np.sum(self.board), "is_success": np.max(self.board) >= 2048}
-    # change the returned tuple to match the new gym step API
+    return self.board.copy(), reward, terminated, {"max_block" : np.max(self.board), "end_value": np.sum(self.board), "is_success": np.max(self.board) >= 2048}
+    # TODO change the returned tuple to match the new gym step API
     # https://www.gymlibrary.dev/content/api/#stepping
-
-    # done was split into "terminated" and "truncated"
+    # it should then return this:
+    # return self.board.copy(), reward, terminated, False, {"max_block" : np.max(self.board), "end_value": np.sum(self.board), "is_success": np.max(self.board) >= 2048}
+    # stable-baselines3 is not ready for this change yet
 
   def is_done(self):
     copy_board = self.board.copy()
@@ -110,7 +111,7 @@ class Base2048Env(gym.Env):
 
   def reset(self, seed=None, **kwargs):
     """Place 2 tiles on empty board."""
-    super().reset(seed=seed)
+    #super().reset(seed=seed)
 
     self.board = np.zeros((self.width, self.height), dtype=np.int64)
     self._place_random_tiles(self.board, count=2)
@@ -119,7 +120,7 @@ class Base2048Env(gym.Env):
       # return_info parameter is included and true
       return self.board, {"max_block" : np.max(self.board), "end_value": np.sum(self.board)}
 
-    return self.board, {}
+    return self.board#, {}
 
   def is_action_possible(self, action: int):
     

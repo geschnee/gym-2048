@@ -183,7 +183,7 @@ def test_when_impossible_action_then_raise_error():
         assert not e.is_action_possible(0)
         
         e.render()
-        _, reward, _, _, _ = e.step(0)
+        _, reward, _, _ = e.step(0)
         e.render()
         assert np.array_equal(e.board, b), f'There was an unexpected change'
         assert reward == -1, f'Rewards for illegal actions should be -1'
@@ -255,7 +255,7 @@ def test_reward_scheme_max_merge():
         e.board = np.copy(b)
         assert e.is_action_possible(0)
 
-        obs, reward, _, _, _ = e.step(0)
+        obs, reward, _, _ = e.step(0)
         assert reward == r
 
 def test_reward_scheme_classic():
@@ -273,5 +273,5 @@ def test_reward_scheme_classic():
         e.board = np.copy(b)
         assert e.is_action_possible(0)
 
-        obs, reward, _, _, _ = e.step(0)
+        obs, reward, _, _ = e.step(0)
         assert reward == r
