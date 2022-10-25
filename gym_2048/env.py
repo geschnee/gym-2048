@@ -166,6 +166,9 @@ class Base2048Env(gym.Env):
       ] = f"{board[3,0]} {board[3,1]} {board[3,2]} {board[3,3]}"
       return dictionary
 
+  def set_board(self, board):
+    self.board = board
+
   def _sample_tiles(self, count=1):
     """Sample tile 2 or 4."""
 
