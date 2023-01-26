@@ -109,7 +109,7 @@ while go:
                 newgame= True
 
     if action != None:
-        board, reward, done, _, info = engine.step(action)
+        board, reward, done, info = engine.step(action)
         
         last_action = action
         action = None
