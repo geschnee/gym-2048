@@ -68,18 +68,59 @@ class Base2048Env(gym.Env):
   def seed(self, seed=None):
     self.np_random, seed = seeding.np_random(seed)
     return [seed]
+  
+  # TODO profiling check if we can save time by reimplementing the rot90 function
+
+  def rot_old(self, board, k):
+    return np.rot90(board, k=k)
+  
+  def rot_new(self, board, k):
+    k=k % 4
+    if k == 0:
+      return board
+    if k == 1:
+      newboard = np.zeros((self.width, self.height), dtype=np.int64)
+      for i in range(self.height):
+        for j in range(self.width):
+          newboard[i][j] = board[j][self.width - i -1]
+      return newboard
+    if k == 2:
+      newboard = np.zeros((self.width, self.height), dtype=np.int64)
+      for i in range(self.height):
+        for j in range(self.width):
+          newboard[i][j] = board[self.height - i - 1][self.width - j - 1] 
+      return newboard
+    if k == 3:
+      newboard = np.zeros((self.width, self.height), dtype=np.int64)
+      for i in range(self.height):
+        for j in range(self.width):
+          newboard[i][j] = board[4 - j - 1][i]
+      return newboard
+
+
+  def rot_both(self, board, k):
+    rot_old = self.rot_old(board, k) 
+    rot_new = self.rot_new(board, k)
+
+    #print(f'board\n{board}')
+    #print(f'k {k}')
+    #print(f'old\n{rot_old}')
+    #print(f'new\n{rot_new}')
+
+    assert np.array_equal(rot_old, rot_new)
+    return rot_new
 
   def step(self, action: int):
     """Perform step, return observation, reward, terminated, false, info."""
 
     # Align board action with left action
-    rotated_obs = np.rot90(self.board, k=action)
-    reward, updated_obs = self._slide_left_and_merge(rotated_obs)
+    rotated_obs = self.rot_new(self.board, k = action) # np.rot90(self.board, k=action)
+    reward, updated_obs, changed = self._slide_left_and_merge(rotated_obs)
 
-    if not np.array_equal(rotated_obs, updated_obs):
+    if changed: # old: not np.array_equal(rotated_obs, updated_obs):
       #update the board only if a change resulted from the action
 
-      self.board = np.rot90(updated_obs, k=4 - action)
+      self.board = self.rot_new(updated_obs, k = 4 - action) # np.rot90(updated_obs, k=4 - action)
       # Place one random tile on empty location
       self._place_random_tiles(self.board, count=1) 
       # since count is always 1 and we did an action, there should never be an issue
@@ -95,16 +136,19 @@ class Base2048Env(gym.Env):
     # stable-baselines3 is not ready for this change yet
 
   def is_done(self):
+    
+    if not self.board.all():
+      return False
+    
     copy_board = self.board.copy()
 
-    if not copy_board.all():
-      return False
-
     for action in [0, 1, 2, 3]:
-      rotated_obs = np.rot90(copy_board, k=action)
-      _, updated_obs = self._slide_left_and_merge(rotated_obs)
+      rotated_obs = self.rot_new(copy_board, k = action) # np.rot90(copy_board, k=action)
+      _, updated_obs, changed = self._slide_left_and_merge(rotated_obs)
       if not updated_obs.all():
         return False
+      
+      # TODO check with profiling if we should remove the call to _slide_left_and_merge with something like is_action_possible?
 
     return True
 
@@ -121,17 +165,46 @@ class Base2048Env(gym.Env):
       return self.board, {"max_block" : np.max(self.board), "end_value": np.sum(self.board)}
 
     return self.board#, {}
+  
+  def is_action_possible_compare(self, action: int):
+    old = self.is_action_possible_old(action)
+    new = self.is_action_possible(action)
+    #print(f'board\n{self.board}')
+    #print(f'k {action}')
+    assert old == new, f'old {old} new {new}'
+    return new
 
-  def is_action_possible(self, action: int):
+
+  def is_action_possible_old(self, action: int):
     
-    rotated_obs = np.rot90(self.board, k=action)
-    _, merged_rotated_board = self._slide_left_and_merge(rotated_obs)
+    rotated_obs = self.rot_new(self.board, k = action) #np.rot90(self.board, k=action)
+    _, merged_rotated_board, changed = self._slide_left_and_merge(rotated_obs)
 
     if np.array_equal(rotated_obs, merged_rotated_board):
       return False
 
+    #    428061    2.262    0.000   96.094    0.000 env.py:167(is_action_possible)
+    #    428061    0.934    0.000   26.566    0.000 env.py:176(is_action_possible_old)
+    #    428061    2.075    0.000    5.112    0.000 env.py:186(is_action_possible_new)
 
     return True
+  
+  def is_action_possible(self, action: int):
+    rotated_obs = self.rot_new(self.board, k = action)
+    for i in range(self.height):
+      row = rotated_obs[i]
+      #check if this row can be slided, if it can, return True
+      zero_found=False
+      for j in range(self.width):
+        if row[j] == 0:
+          zero_found=True
+        elif zero_found:
+          return True # There was a non zero after a zero so the row can be slided
+        
+        if j < self.width - 1 and row[j] == row[j+1] and row[j] != 0:
+          return True # 2 non-zero blocks can be merged
+
+    return False
 
   def possible_actions(self):
     possible_actions = []
@@ -206,31 +279,72 @@ class Base2048Env(gym.Env):
 
     else:
       raise Exception("Board is full.")
+    
+  def oldpad(self, result_row): # profiling shows that this is slower than newpad
+    #   5381052    7.827    0.000  195.385    0.000 env.py:210(oldpad)
+    #   5381052    4.976    0.000    6.114    0.000 env.py:214(newpad)
 
+    return np.pad(np.array(result_row), (0, self.width - len(result_row)),
+                   'constant', constant_values=(0,))
+  
+  def newpad(self, result_row):
+    for _ in range(self.width - len(result_row)):
+      result_row.append(0)
+    return result_row
+  
+  def old_extract_nonzero(self, row):
+    # old_extract_nonzero is slower than new_extract_nonzero
+    #   3947308   10.896    0.000   70.256    0.000 env.py:222(old_extract_nonzero)
+    #   3947308    9.608    0.000   11.027    0.000 env.py:226(new_extract_nonzero)
+    return np.extract(row > 0, row)
+  
+  def new_extract_nonzero(self, row):
+    result = []
+    for i in row:
+      if i != 0:
+        result.append(i)
+    return result
+  
+
+  def row_unequal(self, row, rowc):
+    for i in range(self.width):
+      if row[i] != rowc[i]:
+        return True
+    return False
+    
   def _slide_left_and_merge(self, board):
     """Slide tiles on a grid to the left and merge."""
 
     result = []
 
     merges = []
+    changed = False
     for row in board:
-      row = np.extract(row > 0, row)
-      merges_, result_row = self._try_merge(row)
+      # rowc = self.old_extract_nonzero(row)
+      rowc = self.new_extract_nonzero(row)
+      merges_, result_row = self._try_merge(rowc)
       merges.extend(merges_)
-      row = np.pad(np.array(result_row), (0, self.width - len(result_row)),
-                   'constant', constant_values=(0,))
-      result.append(row)
+      nrow = self.newpad(result_row)
+      result.append(nrow)
+      if not changed and (len(merges) > 0 or self.row_unequal(row, nrow)):
+        changed = True
 
     result_board = np.array(result, dtype=np.int64)
 
-    #default score
-    score = sum(merges)
+    
 
     if self.reward_scheme == self.REWARD_SCHEME_MAX_MERGE:
       score = max(merges) if len(merges)>0 else 0
-
-    if self.reward_scheme == self.REWARD_SCHEME_MERGE_COUNTS:
+    elif self.reward_scheme == self.REWARD_SCHEME_MERGE_COUNTS or self.reward_scheme == self.REWARD_SCHEME_MERGE_COUNTS_ENCOURAGE_EMPTY:
       score = len(merges)
+    elif self.reward_scheme == self.REWARD_SCHEME_TRIPLET:
+      if score > 0:
+        score = 1
+      if score < 0:
+        score = -1
+    else:
+      #default score
+      score = sum(merges)
 
     if self.reward_scheme == self.REWARD_SCHEME_ENCOURAGE_EMPTY or self.reward_scheme == self.REWARD_SCHEME_MERGE_COUNTS_ENCOURAGE_EMPTY:
       score += result_board.size - np.count_nonzero(result_board)
@@ -239,14 +353,7 @@ class Base2048Env(gym.Env):
       score = -1
       #moves without any changes
 
-    
-    if self.reward_scheme == self.REWARD_SCHEME_TRIPLET:
-      if score > 0:
-        score = 1
-      if score < 0:
-        score = -1
-
-    return score, result_board
+    return score, result_board, changed
 
   
   def _try_merge(self, row):
