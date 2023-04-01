@@ -5,6 +5,7 @@ on:
     paths:
     - 'setup.py'
     # only trigger when setup.py is changed
+  workflow_dispatch:
 
 permissions:
   contents: read
