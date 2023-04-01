@@ -338,6 +338,7 @@ class Base2048Env(gym.Env):
     elif self.reward_scheme == self.REWARD_SCHEME_MERGE_COUNTS or self.reward_scheme == self.REWARD_SCHEME_MERGE_COUNTS_ENCOURAGE_EMPTY:
       score = len(merges)
     elif self.reward_scheme == self.REWARD_SCHEME_TRIPLET:
+      score = sum(merges)
       if score > 0:
         score = 1
       if score < 0:

@@ -165,10 +165,10 @@ def test_everything_left_up_possible():
 
             assert np.array_equal(e.board, b), f'Failed {r}'
 
-@pytest.mark.skip(reason="show how to skip test")
-def test_fail():
-    print('\ntest_fail')
-    assert False
+#@pytest.mark.skip(reason="show how to skip test")
+#def test_fail():
+#    print('\ntest_fail')
+#    assert False
 
 
 def test_when_impossible_action_then_raise_error():
