@@ -3,6 +3,7 @@ import gym
 import gym.spaces as spaces
 from gym.utils import seeding
 
+import random
 
 class Base2048Env(gym.Env):
   metadata = {
@@ -144,13 +145,40 @@ class Base2048Env(gym.Env):
 
     for action in [0, 1, 2, 3]:
       rotated_obs = self.rot_new(copy_board, k = action) # np.rot90(copy_board, k=action)
-      _, updated_obs, changed = self._slide_left_and_merge(rotated_obs)
-      if not updated_obs.all():
+      # _, updated_obs, changed = self._slide_left_and_merge_cp(rotated_obs)
+      merge_possible = self._slide_or_merge_possible(rotated_obs)
+      if merge_possible:
+        # something can be merged --> we are not done
         return False
       
-      # TODO check with profiling if we should remove the call to _slide_left_and_merge with something like is_action_possible?
+ 
 
     return True
+  
+  def _slide_or_merge_possible(self, board):
+    # this function just checks if two adjacent tiles have the same value (and thus can be merged)
+    # this method is only intended for the check of is_done when the entire board is full
+
+    # this method is much faster than the _slide_left_and_merge method, which was used to check this before
+
+    #   577683    6.136    0.000   27.916    0.000 env.py:446(_slide_left_and_merge)
+    #   1143205    1.438    0.000   27.043    0.000 env.py:139(is_done)
+    #   374688    3.988    0.000   18.043    0.000 env.py:176(_slide_left_and_merge_cp)
+    #   374688    2.163    0.000    2.292    0.000 env.py:159(_slide_or_merge_possible)
+
+    changed = False
+    for row in board:
+      
+      assert len(row) == self.width
+      for i in range(self.width - 1):
+        if row[i] == 0:
+          raise ValueError("row should not contain 0, we already checked if there is a zero anywhere in the board and there is none, see is_done")
+
+        if row[i] == row[i + 1]:
+          changed = True
+          return changed
+        
+    return changed
 
 
   def reset(self, seed=None, **kwargs):
@@ -245,6 +273,10 @@ class Base2048Env(gym.Env):
   def _sample_tiles(self, count=1):
     """Sample tile 2 or 4."""
 
+    #   390890    3.503    0.000   23.629    0.000 env.py:278(_sample_tile_locations)
+    #   390890    0.564    0.000   17.418    0.000 env.py:246(_sample_tiles)
+    #   390890    0.374    0.000    0.453    0.000 env.py:260(_sample_tiles_no_numpy)
+
     if self.only_2s:
       return [2] * count
 
@@ -255,24 +287,86 @@ class Base2048Env(gym.Env):
                                   size=count,
                                   p=probs)
     return tiles.tolist()
+  
+  def _sample_tiles_no_numpy(self, count = 1):
+    
+    if self.only_2s:
+      return [2] * count
+    if count == 1:
+      if random.random() < 0.9:
+        return [2]
+      else:
+        return [4]
+    tiles = []
+    for i in range(count):
+      if random.random() < 0.9:
+        tiles.append(2)
+      else:
+        tiles.append(4)
+    return tiles
+
 
   def _sample_tile_locations(self, board, count=1):
     """Sample grid locations with no tile."""
 
     zero_locs = np.argwhere(board == 0)
+    print(f'zero_locs {zero_locs}')
     zero_indices = self.np_random.choice(
         len(zero_locs), size=count)
+    print(f'zero_indices {zero_indices}')
 
     zero_pos = zero_locs[zero_indices]
 
     t = np.transpose(zero_pos)
+
+    #    510888    7.796    0.000  188.273    0.000 env.py:331(_place_random_tiles)
+    #    510888    9.059    0.000  125.399    0.000 env.py:282(_sample_tile_locations)
+    #    510888    7.303    0.000   14.266    0.000 env.py:297(_sample_tile_locations_no_numpy)
     
+    return t
+
+  def _sample_tile_locations_no_numpy(self, board, count=1):
+    """Sample grid locations with no tile."""
+
+    zero_locs = []
+    for i in range(self.height):
+      for j in range(self.width):
+        if board[i][j] == 0:
+          zero_locs.append([i,j])
+    
+    #print(f'zero_locs new {zero_locs}')
+    zero_indices = []
+    while len(zero_indices) < count:
+      index = random.randint(0, len(zero_locs) - 1)
+      if index not in zero_indices:
+        zero_indices.append(index)
+    #print(f'zero_indices new {zero_indices}')
+
+    t = [[],[]]
+    for index in zero_indices:
+      t[0].append(zero_locs[index][0])
+      t[1].append(zero_locs[index][1])
+    
+    #print(f't {t}')
+
+    
+    
+    # returned shape muss (2, count) sein
+    # z.B. t [[2]
+    #         [2]]
+
+    #assert t.shape == (2, count)
+
     return t
 
   def _place_random_tiles(self, board, count=1):
     if not board.all():
-      tiles = self._sample_tiles(count)
-      tile_locs = self._sample_tile_locations(board, count)
+      #tiles_old = self._sample_tiles(count)
+      tiles = self._sample_tiles_no_numpy(count)
+      #print(f'tiles_old {tiles_old} tiles {tiles}')
+      #tile_locs_old = self._sample_tile_locations(board, count)
+      tile_locs = self._sample_tile_locations_no_numpy(board, count)
+      #print(f'tile_locs_old {tile_locs_old} tile_locs {tile_locs}')
 
       board[(tile_locs[0], tile_locs[1])] = tiles
       #tile_locs[0] is the x indices and tile_locs[1] is the y indices
@@ -355,6 +449,7 @@ class Base2048Env(gym.Env):
       #moves without any changes
 
     return score, result_board, changed
+
 
   
   def _try_merge(self, row):
