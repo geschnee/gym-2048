@@ -69,13 +69,11 @@ class Base2048Env(gym.Env):
   def seed(self, seed=None):
     self.np_random, seed = seeding.np_random(seed)
     return [seed]
-  
-  # TODO profiling check if we can save time by reimplementing the rot90 function
 
   def rot_old(self, board, k):
     return np.rot90(board, k=k)
   
-  def rot_new(self, board, k):
+  def rot_board_no_numpy(self, board, k):
     k=k % 4
     if k == 0:
       return board
@@ -98,33 +96,19 @@ class Base2048Env(gym.Env):
           newboard[i][j] = board[4 - j - 1][i]
       return newboard
 
-
-  def rot_both(self, board, k):
-    rot_old = self.rot_old(board, k) 
-    rot_new = self.rot_new(board, k)
-
-    #print(f'board\n{board}')
-    #print(f'k {k}')
-    #print(f'old\n{rot_old}')
-    #print(f'new\n{rot_new}')
-
-    assert np.array_equal(rot_old, rot_new)
-    return rot_new
-
   def step(self, action: int):
     """Perform step, return observation, reward, terminated, false, info."""
 
     # Align board action with left action
-    rotated_obs = self.rot_new(self.board, k = action) # np.rot90(self.board, k=action)
+    rotated_obs = self.rot_board_no_numpy(self.board, k = action)
     reward, updated_obs, changed = self._slide_left_and_merge(rotated_obs)
 
-    if changed: # old: not np.array_equal(rotated_obs, updated_obs):
+    if changed:
       #update the board only if a change resulted from the action
 
-      self.board = self.rot_new(updated_obs, k = 4 - action) # np.rot90(updated_obs, k=4 - action)
+      self.board = self.rot_board_no_numpy(updated_obs, k = 4 - action)
       # Place one random tile on empty location
-      self._place_random_tiles(self.board, count=1) 
-      # since count is always 1 and we did an action, there should never be an issue
+      self._place_random_tiles(self.board, count=1)
 
 
     terminated = self.is_done()
@@ -144,27 +128,24 @@ class Base2048Env(gym.Env):
     copy_board = self.board.copy()
 
     for action in [0, 1, 2, 3]:
-      rotated_obs = self.rot_new(copy_board, k = action) # np.rot90(copy_board, k=action)
-      # _, updated_obs, changed = self._slide_left_and_merge_cp(rotated_obs)
-      merge_possible = self._slide_or_merge_possible(rotated_obs)
+      rotated_obs = self.rot_board_no_numpy(copy_board, k = action)
+      
+      merge_possible = self._merge_possible(rotated_obs)
       if merge_possible:
         # something can be merged --> we are not done
         return False
-      
- 
 
     return True
   
-  def _slide_or_merge_possible(self, board):
+  def _merge_possible(self, board):
     # this function just checks if two adjacent tiles have the same value (and thus can be merged)
     # this method is only intended for the check of is_done when the entire board is full
 
     # this method is much faster than the _slide_left_and_merge method, which was used to check this before
 
-    #   577683    6.136    0.000   27.916    0.000 env.py:446(_slide_left_and_merge)
     #   1143205    1.438    0.000   27.043    0.000 env.py:139(is_done)
-    #   374688    3.988    0.000   18.043    0.000 env.py:176(_slide_left_and_merge_cp)
-    #   374688    2.163    0.000    2.292    0.000 env.py:159(_slide_or_merge_possible)
+    #   374688    3.988    0.000   18.043    0.000 env.py:176(_slide_left_and_merge)
+    #   374688    2.163    0.000    2.292    0.000 env.py:159(_merge_possible)
 
     changed = False
     for row in board:
@@ -192,33 +173,10 @@ class Base2048Env(gym.Env):
       # return_info parameter is included and true
       return self.board, {"max_block" : np.max(self.board), "end_value": np.sum(self.board)}
 
-    return self.board#, {}
-  
-  def is_action_possible_compare(self, action: int):
-    old = self.is_action_possible_old(action)
-    new = self.is_action_possible(action)
-    #print(f'board\n{self.board}')
-    #print(f'k {action}')
-    assert old == new, f'old {old} new {new}'
-    return new
-
-
-  def is_action_possible_old(self, action: int):
-    
-    rotated_obs = self.rot_new(self.board, k = action) #np.rot90(self.board, k=action)
-    _, merged_rotated_board, changed = self._slide_left_and_merge(rotated_obs)
-
-    if np.array_equal(rotated_obs, merged_rotated_board):
-      return False
-
-    #    428061    2.262    0.000   96.094    0.000 env.py:167(is_action_possible)
-    #    428061    0.934    0.000   26.566    0.000 env.py:176(is_action_possible_old)
-    #    428061    2.075    0.000    5.112    0.000 env.py:186(is_action_possible_new)
-
-    return True
+    return self.board
   
   def is_action_possible(self, action: int):
-    rotated_obs = self.rot_new(self.board, k = action)
+    rotated_obs = self.rot_board_no_numpy(self.board, k = action)
     for i in range(self.height):
       row = rotated_obs[i]
       #check if this row can be slided, if it can, return True
@@ -273,10 +231,6 @@ class Base2048Env(gym.Env):
   def _sample_tiles(self, count=1):
     """Sample tile 2 or 4."""
 
-    #   390890    3.503    0.000   23.629    0.000 env.py:278(_sample_tile_locations)
-    #   390890    0.564    0.000   17.418    0.000 env.py:246(_sample_tiles)
-    #   390890    0.374    0.000    0.453    0.000 env.py:260(_sample_tiles_no_numpy)
-
     if self.only_2s:
       return [2] * count
 
@@ -310,18 +264,12 @@ class Base2048Env(gym.Env):
     """Sample grid locations with no tile."""
 
     zero_locs = np.argwhere(board == 0)
-    print(f'zero_locs {zero_locs}')
     zero_indices = self.np_random.choice(
         len(zero_locs), size=count)
-    print(f'zero_indices {zero_indices}')
 
     zero_pos = zero_locs[zero_indices]
 
     t = np.transpose(zero_pos)
-
-    #    510888    7.796    0.000  188.273    0.000 env.py:331(_place_random_tiles)
-    #    510888    9.059    0.000  125.399    0.000 env.py:282(_sample_tile_locations)
-    #    510888    7.303    0.000   14.266    0.000 env.py:297(_sample_tile_locations_no_numpy)
     
     return t
 
@@ -334,63 +282,34 @@ class Base2048Env(gym.Env):
         if board[i][j] == 0:
           zero_locs.append([i,j])
     
-    #print(f'zero_locs new {zero_locs}')
     zero_indices = []
     while len(zero_indices) < count:
       index = random.randint(0, len(zero_locs) - 1)
       if index not in zero_indices:
         zero_indices.append(index)
-    #print(f'zero_indices new {zero_indices}')
 
     t = [[],[]]
     for index in zero_indices:
       t[0].append(zero_locs[index][0])
       t[1].append(zero_locs[index][1])
-    
-    #print(f't {t}')
-
-    
-    
-    # returned shape muss (2, count) sein
-    # z.B. t [[2]
-    #         [2]]
-
-    #assert t.shape == (2, count)
 
     return t
 
   def _place_random_tiles(self, board, count=1):
     if not board.all():
-      #tiles_old = self._sample_tiles(count)
       tiles = self._sample_tiles_no_numpy(count)
-      #print(f'tiles_old {tiles_old} tiles {tiles}')
-      #tile_locs_old = self._sample_tile_locations(board, count)
       tile_locs = self._sample_tile_locations_no_numpy(board, count)
-      #print(f'tile_locs_old {tile_locs_old} tile_locs {tile_locs}')
 
       board[(tile_locs[0], tile_locs[1])] = tiles
       #tile_locs[0] is the x indices and tile_locs[1] is the y indices
 
     else:
       raise Exception("Board is full.")
-    
-  def oldpad(self, result_row): # profiling shows that this is slower than newpad
-    #   5381052    7.827    0.000  195.385    0.000 env.py:210(oldpad)
-    #   5381052    4.976    0.000    6.114    0.000 env.py:214(newpad)
-
-    return np.pad(np.array(result_row), (0, self.width - len(result_row)),
-                   'constant', constant_values=(0,))
   
-  def newpad(self, result_row):
+  def pad(self, result_row):
     for _ in range(self.width - len(result_row)):
       result_row.append(0)
     return result_row
-  
-  def old_extract_nonzero(self, row):
-    # old_extract_nonzero is slower than new_extract_nonzero
-    #   3947308   10.896    0.000   70.256    0.000 env.py:222(old_extract_nonzero)
-    #   3947308    9.608    0.000   11.027    0.000 env.py:226(new_extract_nonzero)
-    return np.extract(row > 0, row)
   
   def new_extract_nonzero(self, row):
     result = []
@@ -414,11 +333,10 @@ class Base2048Env(gym.Env):
     merges = []
     changed = False
     for row in board:
-      # rowc = self.old_extract_nonzero(row)
       rowc = self.new_extract_nonzero(row)
       merges_, result_row = self._try_merge(rowc)
       merges.extend(merges_)
-      nrow = self.newpad(result_row)
+      nrow = self.pad(result_row)
       result.append(nrow)
       if not changed and (len(merges) > 0 or self.row_unequal(row, nrow)):
         changed = True
@@ -449,8 +367,6 @@ class Base2048Env(gym.Env):
       #moves without any changes
 
     return score, result_board, changed
-
-
   
   def _try_merge(self, row):
     merges = []
