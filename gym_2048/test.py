@@ -275,3 +275,37 @@ def test_reward_scheme_classic():
 
         obs, reward, _, _ = e.step(0)
         assert reward == r
+
+def test_board_mutation():
+    e = env.Base2048Env()
+
+    board = np.array([[0, 0, 8, 0], [4, 0, 0, 0], [0, 0, 0, 0], [0, 2, 0, 0]])
+    action_values = [4, 8, 0, 2]
+
+    correct_board_mutations = [
+        np.array([[0, 0, 8, 0], [4, 0, 0, 0], [0, 0, 0, 0], [0, 2, 0, 0]]),
+        np.array([[0, 0, 0, 0], [8, 0, 0, 0], [0, 0, 0, 2], [0, 4, 0, 0]]),
+        np.array([[0, 0, 2, 0], [0, 0, 0, 0], [0, 0, 0, 4], [0, 8, 0, 0]]),
+        np.array([[0, 0, 4, 0], [2, 0, 0, 0], [0, 0, 0, 8], [0, 0, 0, 0]]),
+        # flipped ones
+        
+        np.array([[0, 2, 0, 0], [0, 0, 0, 0], [4, 0, 0, 0], [0, 0, 8, 0]]),
+        np.array([[0, 0, 0, 0], [0, 0, 0, 8], [2, 0, 0, 0], [0, 0, 4, 0]]),
+        np.array([[0, 8, 0, 0], [0, 0, 0, 4], [0, 0, 0, 0], [0, 0, 2, 0]]),
+        np.array([[0, 4, 0, 0], [0, 0, 0, 2], [8, 0, 0, 0], [0, 0, 0, 0]]),
+        ]
+    correct_action_mutations = [[4, 8, 0, 2], [8,0,2,4], [0,2,4,8], [2,4,8,0],
+                                
+                                # for flipped ones:
+                                [4,2,0,8], [2,0,8,4], [0,8,4,2], [8,4,2,0]]
+
+
+    results = e.permutate_board(board, action_values)
+
+    for i in range(len(results)):
+        print(f'i {i}\nResult board\n{results[i][0]} and actions\n{results[i][1]}')
+
+
+    for i in range(len(results)):
+        assert np.array_equal(results[i][0], correct_board_mutations[i]), f'i {i}\nResult\n{results[i][0]} and correct\n{correct_board_mutations[i]}'
+        assert np.array_equal(results[i][1], correct_action_mutations[i]), f'i {i}\nResult\n{results[i][1]} and correct\n{correct_action_mutations[i]}'
