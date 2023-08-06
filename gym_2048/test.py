@@ -309,3 +309,37 @@ def test_board_mutation():
     for i in range(len(results)):
         assert np.array_equal(results[i][0], correct_board_mutations[i]), f'i {i}\nResult\n{results[i][0]} and correct\n{correct_board_mutations[i]}'
         assert np.array_equal(results[i][1], correct_action_mutations[i]), f'i {i}\nResult\n{results[i][1]} and correct\n{correct_action_mutations[i]}'
+
+def test_permutate_board_single_action():
+    e = env.Base2048Env()
+
+    board = np.array([[0, 0, 8, 0], [4, 0, 0, 0], [0, 0, 0, 0], [0, 2, 0, 0]])
+    action= 3
+
+    correct_board_mutations = [
+        np.array([[0, 0, 8, 0], [4, 0, 0, 0], [0, 0, 0, 0], [0, 2, 0, 0]]),
+        np.array([[0, 0, 0, 0], [8, 0, 0, 0], [0, 0, 0, 2], [0, 4, 0, 0]]),
+        np.array([[0, 0, 2, 0], [0, 0, 0, 0], [0, 0, 0, 4], [0, 8, 0, 0]]),
+        np.array([[0, 0, 4, 0], [2, 0, 0, 0], [0, 0, 0, 8], [0, 0, 0, 0]]),
+        # flipped ones
+        
+        np.array([[0, 2, 0, 0], [0, 0, 0, 0], [4, 0, 0, 0], [0, 0, 8, 0]]),
+        np.array([[0, 0, 0, 0], [0, 0, 0, 8], [2, 0, 0, 0], [0, 0, 4, 0]]),
+        np.array([[0, 8, 0, 0], [0, 0, 0, 4], [0, 0, 0, 0], [0, 0, 2, 0]]),
+        np.array([[0, 4, 0, 0], [0, 0, 0, 2], [8, 0, 0, 0], [0, 0, 0, 0]]),
+        ]
+    correct_action_mutations = [3, 2, 1, 0,
+                                
+                                # for flipped ones:
+                                1, 0, 3, 2]
+
+
+    results = e.permutate_board_single_action(board, action)
+
+    for i in range(len(results)):
+        print(f'i {i}\nResult board\n{results[i][0]} and action {results[i][1]}')
+
+
+    for i in range(len(results)):
+        assert np.array_equal(results[i][0], correct_board_mutations[i]), f'i {i}\nResult\n{results[i][0]} and correct\n{correct_board_mutations[i]}'
+        assert results[i][1] == correct_action_mutations[i], f'i {i}\nResult\n{results[i][1]} and correct\n{correct_action_mutations[i]}'

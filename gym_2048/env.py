@@ -366,6 +366,8 @@ class Base2048Env(gym.Env):
       score = -1
       #moves without any changes
 
+    print("score: ", score)
+    print(f'score type: {type(score)}')
     return score, result_board, changed
   
   def _try_merge(self, row):
@@ -400,7 +402,7 @@ class Base2048Env(gym.Env):
 
 
   def permutate_board(self, board, action_values):
-    # TODO rotate board in all 4 directions (3 directions since one is already given)
+    # rotate board in all 4 directions (3 directions since one is already given)
     # also flip board across x and y axis for more data
 
     rotation_action_mappings = {
@@ -429,5 +431,38 @@ class Base2048Env(gym.Env):
       rot_b = self.rot_board_no_numpy(flipped_board, i)
       new_action_values = [action_values[j] for j in flipped_rotation_action_mappings[i + 4]]
       mutations.append((rot_b, new_action_values))
+
+    return mutations
+
+  def permutate_board_single_action(self, board, action):
+    # rotate board in all 4 directions (3 directions since one is already given)
+    # also flip board across x and y axis for more data
+
+    rotation_action_mappings = {
+      0: [0, 1, 2, 3],
+      1: [3, 0, 1, 2],
+      2: [2, 3, 0, 1],
+      3: [1, 2, 3, 0],
+    }
+
+    flipped_rotation_action_mappings = {
+      4: [0, 3, 2, 1],
+      5: [3, 2, 1, 0],
+      6: [2, 1, 0, 3],
+      7: [1, 0, 3, 2],
+    }
+
+    # return all the data and the mapping of old actions to new actions
+    mutations = [] # first mutation is the original board
+    for i in range(4):
+      rot_b = self.rot_board_no_numpy(board, i)
+      new_action = rotation_action_mappings[i][action]
+      mutations.append((rot_b, new_action))
+
+    flipped_board = self.flip_board_no_numpy(board)
+    for i in range(4):
+      rot_b = self.rot_board_no_numpy(flipped_board, i)
+      new_action = flipped_rotation_action_mappings[i + 4][action]
+      mutations.append((rot_b, new_action))
 
     return mutations
