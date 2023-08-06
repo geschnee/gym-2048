@@ -23,11 +23,11 @@ jobs:
         python-version: "3.10"
     - name: Install Setuptools
       run: |
-        python -m pip install -U setuptools==65.5.0
+        python -m pip install setuptools==65.5.0
       # https://github.com/openai/gym/issues/3176
+      # https://github.com/openai/gym/issues/3200
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
         pip install flake8 pytest
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Test with pytest
