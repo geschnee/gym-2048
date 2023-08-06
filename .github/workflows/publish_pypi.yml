@@ -24,7 +24,7 @@ jobs:
     - name: Install Gym 0.21.0
       run: |
         git clone https://github.com/rlberry-py/gym_fix_021.git
-      # python gym_fix_021/setup.py install
+        python gym_fix_021/setup.py install --user
       # https://github.com/openai/gym/issues/3176
       # https://github.com/openai/gym/issues/3200
 
@@ -33,10 +33,6 @@ jobs:
     - name: Print modules
       run: |
         python -c 'help("modules")'
-    - name: Pip Install Gym 0.21.0
-      run: |
-        pip install --upgrade setuptools==66
-        pip install --upgrade gym==0.21
 
     - name: Install dependencies
       run: |
