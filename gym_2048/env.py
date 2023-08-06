@@ -404,6 +404,7 @@ class Base2048Env(gym.Env):
   def permutate_board(self, board, action_values):
     # rotate board in all 4 directions (3 directions since one is already given)
     # also flip board across x and y axis for more data
+    # in total 8 mutations of the board are returned
 
     rotation_action_mappings = {
       0: [0, 1, 2, 3],
