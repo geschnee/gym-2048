@@ -27,10 +27,23 @@ jobs:
         python gym_fix_021/setup.py install
       # https://github.com/openai/gym/issues/3176
       # https://github.com/openai/gym/issues/3200
+
+      # pip install --upgrade setuptools==66
+      # pip install --upgrade gym==0.21
+    - name: Print modules
+      run: |
+        python -c 'help("modules")'
+
+
     - name: Install dependencies
       run: |
         pip install flake8 pytest
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+    - name: Print modules 2
+      run: |
+        python -c 'help("modules")'
+
     - name: Test with pytest
       working-directory: ./gym_2048
       run: |
