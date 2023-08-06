@@ -33,7 +33,10 @@ jobs:
     - name: Print modules
       run: |
         python -c 'help("modules")'
-
+    - name: Pip Install Gym 0.21.0
+      run: |
+        pip install --upgrade setuptools==66
+        pip install --upgrade gym==0.21
 
     - name: Install dependencies
       run: |
