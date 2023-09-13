@@ -8,13 +8,31 @@ import pytest
 
 from gym.utils.env_checker import check_env
 
-from gym_2048.env import Base2048Env
+from gym_2048.env import Base2048Env#, is_action_possible_cache
+
+from gym_2048.is_possible import is_action_possible_cache
 
 
 # python -m pytest test.py
 
 # with Output:
 # python -m pytest test.py -s
+
+def test_cache_hit():
+    print('\ntest_cache_hit')
+    e = env.Base2048Env()
+    p = e.is_action_possible(0)
+    hits = is_action_possible_cache.cache_info().hits
+    print(f'first check')
+    p2 = e.is_action_possible(0)
+    hits_after = is_action_possible_cache.cache_info().hits
+
+    print(f'hit {hits} and hit after {hits_after}')
+
+    assert hits_after == hits + 1, f'Cache hit failed'
+    assert p == p2, f'Cache hit failed'
+    #assert False
+    
 
 def test_is_done():
     print('\ntest_is_done')
@@ -56,6 +74,8 @@ def test_is_any_action_possible_done_board():
             assert not e.is_action_possible(i), f'Failed {r}'
         
         assert np.array_equal(e.board, get_impossible_board()), f'Failed {r}'
+
+
 
 
 def test_everything_impossible_except_left():

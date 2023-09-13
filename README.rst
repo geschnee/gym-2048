@@ -33,7 +33,7 @@ From cloned repository
 
     python setup.py install
 
-
+C:\Users\User\AppData\Local\Programs\Python\Python310\Lib\site-packages
 
 Environment(s)
 --------------
