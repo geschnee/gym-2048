@@ -126,6 +126,16 @@ class Base2048Env(gym.Env):
     # stable-baselines3 is not ready for this change yet
 
   def is_done(self):
+    old = self.is_done_old()
+    new1 = self.is_done_new1()
+    new2 = self.is_done_new2()
+
+    assert old == new1, f"old and new1 is_done should return the same value, old: {old}, new1: {new1}"
+    assert old == new2, f"old and new2 is_done should return the same value, old: {old}, new2: {new2}"
+
+    return old
+
+  def is_done_old(self):
     
     if not self.board.all():
       return False
@@ -138,6 +148,27 @@ class Base2048Env(gym.Env):
       merge_possible = self._merge_possible(rotated_obs)
       if merge_possible:
         # something can be merged --> we are not done
+        return False
+
+    return True
+  
+  def is_done_new1(self):
+    
+    if not self.board.all():
+      return False
+
+    for action in [0, 1, 2, 3]:
+      possible = self.is_action_possible(action)
+      if possible:
+        return False
+
+    return True
+  
+  def is_done_new2(self):
+   
+    for action in [0, 1, 2, 3]:
+      possible = self.is_action_possible(action)
+      if possible:
         return False
 
     return True
