@@ -7,13 +7,13 @@ from functools import lru_cache, cache
 # 
     
 
-#@lru_cache(maxsize=512)
-@cache
-def is_action_possible_cache(board_action):
+@lru_cache(maxsize=512)
+#@cache
+def is_action_possible_cache(board, action):
 
   #print(f'cache miss for board_action {board_action}')
-  board = board_action[0]
-  action = board_action[1]
+  #board = board_action[0]
+  #action = board_action[1]
   assert type(action) == int, f'Action must be an integer, not {type(action)}, we want to be hashable, not tensor'
 
   height = 4

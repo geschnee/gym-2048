@@ -46,7 +46,7 @@ class Base2048Env(gym.Env):
   def get_reward_schemes():
     return [Base2048Env.REWARD_SCHEME_CLASSIC, Base2048Env.REWARD_SCHEME_ENCOURAGE_EMPTY,Base2048Env.REWARD_SCHEME_MERGE_COUNTS_ENCOURAGE_EMPTY, Base2048Env.REWARD_SCHEME_MERGE_COUNTS, Base2048Env.REWARD_SCHEME_TRIPLET, Base2048Env.REWARD_SCHEME_MAX_MERGE]
 
-  def __init__(self, width=4, height=4, reward_scheme=REWARD_SCHEME_CLASSIC, only_2s=False, punish_illegal_move=True):
+  def __init__(self, width=4, height=4, reward_scheme=REWARD_SCHEME_CLASSIC, only_2s=False, punish_illegal_move=True, full_info=False):
     self.width = width
     self.height = height
 
@@ -54,6 +54,7 @@ class Base2048Env(gym.Env):
     self.reward_scheme = reward_scheme
     self.only_2s = only_2s
     self.punish_illegal_move = punish_illegal_move
+    self.full_info = full_info
     
 
     self.observation_space = spaces.Box(low=0,
@@ -73,11 +74,7 @@ class Base2048Env(gym.Env):
     self.np_random, seed = seeding.np_random(seed)
     return [seed]
 
-  def rot_old(self, board, k):
-    return np.rot90(board, k=k)
-  
   def rot_board_no_numpy(self, board, k):
-    # TODO refactor to not use this method or make this very quick
     k=k % 4
     if k == 0:
       return board
@@ -100,80 +97,99 @@ class Base2048Env(gym.Env):
           newboard[i][j] = board[4 - j - 1][i]
       return newboard
 
-  def step(self, action: int):
-    """Perform step, return observation, reward, terminated, false, info."""
+  def old_move(self, action: int):
+    raise NotImplementedError("This method is not used anymore, it is only kept for reference")
 
     # Align board action with left action
     rotated_obs = self.rot_board_no_numpy(self.board, k = action)
-    reward, updated_obs, changed = self._slide_left_and_merge(rotated_obs)
+    reward, updated_obs, changed = self._slide_l_and_merge(rotated_obs)
+    board = self.board
+    if changed:
+      #update the board only if a change resulted from the action
+      board = self.rot_board_no_numpy(updated_obs, k = 4 - action)
+    return reward, board, changed
+  
+  def new_move(self, action: int):
+    # Align board action with left action
+    if action == 0:
+      reward, updated_obs, changed = self._slide_left_and_merge(self.board)
+    elif action == 1:
+      reward, updated_obs, changed = self._slide_up_and_merge(self.board)
+    elif action == 2:
+      reward, updated_obs, changed = self._slide_right_and_merge(self.board)
+    elif action == 3:
+      reward, updated_obs, changed = self._slide_down_and_merge(self.board)
+    else: 
+      raise ValueError("action should be 0, 1, 2 or 3")
 
+    return reward, updated_obs, changed
+
+  def step(self, action: int):
+    """Perform step, return observation, reward, terminated, false, info."""
+    
+    reward, board, changed = self.new_move(action)
+
+    self.board = board
+
+    definitely_not_terminated = False
     if changed:
       #update the board only if a change resulted from the action
 
-      self.board = self.rot_board_no_numpy(updated_obs, k = 4 - action)
-      # Place one random tile on empty location
-      self._place_random_tiles(self.board, count=1)
+      definitely_not_terminated = self._place_random_single_tile(self.board)
 
+    if definitely_not_terminated:
+      terminated = False
+    else:
+      terminated = self.is_done()
 
-    terminated = self.is_done()
     # board.copy() is returned because of an error/incompatibility with Salina https://github.com/facebookresearch/salina
     # since we do not use salina anymore, we try without board copy
-    return self.board, reward, terminated, {"max_block" : np.max(self.board), "end_value": np.sum(self.board), "is_success": np.max(self.board) >= 2048}
+
+    if terminated or self.full_info:
+      mx = self.board_max(self.board)
+      info_dict = {"max_block" : mx, "end_value": self.board_sum(self.board), "is_success": mx >= 2048}
+    else:
+      # TODO is it okay like this for sb3?
+      info_dict = {}
+
+
+    return self.board, reward, terminated, info_dict
     # TODO change the returned tuple to match the new gym step API
     # https://www.gymlibrary.dev/content/api/#stepping
     # it should then return this:
     # return self.board.copy(), reward, terminated, False, {"max_block" : np.max(self.board), "end_value": np.sum(self.board), "is_success": np.max(self.board) >= 2048}
     # stable-baselines3 is not ready for this change yet
 
+  def board_max(self, board):
+    # quicker than np.max(board)
+    mx = 0
+    for i in range(self.height):
+      for j in range(self.width):
+        if board[i][j] > mx:
+          mx = board[i][j]
+    return mx
+  
+
+  def board_sum(self, board):
+    # quicker than np.sum(board)
+    sum = 0
+    for i in range(self.height):
+      for j in range(self.width):
+        sum += board[i][j]
+    return sum
+
   def is_done(self):
-    old = self.is_done_old()
-    new1 = self.is_done_new1()
-    new2 = self.is_done_new2()
-
-    assert old == new1, f"old and new1 is_done should return the same value, old: {old}, new1: {new1}"
-    assert old == new2, f"old and new2 is_done should return the same value, old: {old}, new2: {new2}"
-
-    return old
-
-  def is_done_old(self):
-    
-    if not self.board.all():
-      return False
-    
-    copy_board = self.board.copy()
-
+    board_hashable = tuple(map(tuple, self.board))
     for action in [0, 1, 2, 3]:
-      rotated_obs = self.rot_board_no_numpy(copy_board, k = action)
-      
-      merge_possible = self._merge_possible(rotated_obs)
-      if merge_possible:
-        # something can be merged --> we are not done
-        return False
-
-    return True
-  
-  def is_done_new1(self):
-    
-    if not self.board.all():
-      return False
-
-    for action in [0, 1, 2, 3]:
-      possible = self.is_action_possible(action)
-      if possible:
-        return False
-
-    return True
-  
-  def is_done_new2(self):
-   
-    for action in [0, 1, 2, 3]:
-      possible = self.is_action_possible(action)
+      possible = is_action_possible_cache(board_hashable, int(action))
       if possible:
         return False
 
     return True
   
   def _merge_possible(self, board):
+    raise NotImplementedError("This method is not used anymore, it is only kept for reference")
+
     # this function just checks if two adjacent tiles have the same value (and thus can be merged)
     # this method is only intended for the check of is_done when the entire board is full
 
@@ -207,7 +223,7 @@ class Base2048Env(gym.Env):
 
     if 'return_info' in kwargs and kwargs['return_info']:
       # return_info parameter is included and true
-      return self.board, {"max_block" : np.max(self.board), "end_value": np.sum(self.board)}
+      return self.board, {"max_block" : self.board_max(self.board), "end_value": self.board_sum(self.board)}
 
     return self.board
   
@@ -219,112 +235,7 @@ class Base2048Env(gym.Env):
     # how to view cache status:
     # print(is_action_possible_cache.cache_info())
 
-    return is_action_possible_cache((board_hashable, int(action)))
-    
-  
-  def is_action_possible2(self, action: int):
-    # we do not need the rotation, profiling shows a large proportion of time is spent in rot_board_no_numpy
-    # tottime: 0.132
-    # cumtime: 0.778
-
-    # new method is much faster (cumtime)
-
-    #ncalls  tottime  percall  cumtime  percall filename:lineno(function)
-    #21514    0.442    0.000    0.442    0.000 env.py:195(is_action_possible_new)
-    #21514    0.133    0.000    0.770    0.000 env.py:256(is_action_possible_old)
-    #21514    0.104    0.000    1.469    0.000 env.py:179(is_action_possible)
-
-
-    #import time
-    #old_time = time.time()
-    #old_poss = self.is_action_possible_old(action)
-    #print(f"old time: {time.time() - old_time}")
-    #new_time = time.time()
-    new_poss = self.is_action_possible_new(action)
-    #print(f"new time: {time.time() - new_time}")
-    #assert old_poss == new_poss
-
-    return new_poss
-
-
-
-  def is_action_possible_new(self, action: int):
-    if action == 0:
-      for i in range(self.height):
-        row = self.board[i]
-        #check if this row can be slided, if it can, return True
-        zero_found=False
-        for j in range(self.width):
-          if row[j] == 0:
-            zero_found=True
-          elif zero_found:
-            return True # There was a non zero after a zero so the row can be slided
-          
-          if j < self.width - 1 and row[j] == row[j+1] and row[j] != 0:
-            return True # 2 non-zero blocks can be merged
-    if action == 1:
-      # slide up
-      for i in range(self.width):
-        #check columns
-        col = self.board[:,i]
-        zero_found=False
-        for j in range(self.height):
-          if col[j] == 0:
-            zero_found=True
-          elif zero_found:
-            return True # There was a non zero after a zero so the col can be slided up
-          
-          if j < self.width - 1 and col[j] == col[j+1] and col[j] != 0:
-            return True # 2 non-zero blocks can be merged
-    if action == 2:
-      # slide right
-      for i in range(self.height):
-        row = self.board[i]
-        #check if this row can be slided, if it can, return True
-        zero_found=False
-        for j in range(self.width):
-          j = self.width - 1 - j
-          if row[j] == 0:
-            zero_found=True
-          elif zero_found:
-            return True # There was a non zero after a zero so the row can be slided
-          
-          if j < self.width - 1 and row[j] == row[j+1] and row[j] != 0:
-            return True # 2 non-zero blocks can be merged
-    if action == 3:
-      # slide down
-      for i in range(self.width):
-        #check columns
-        col = self.board[:,i]
-        zero_found=False
-        for j in range(self.height):
-          j = self.height - 1 - j
-          if col[j] == 0:
-            zero_found=True
-          elif zero_found:
-            return True # There was a non zero after a zero so the col can be slided up
-          
-          if j < self.width - 1 and col[j] == col[j+1] and col[j] != 0:
-            return True # 2 non-zero blocks can be merged
-    
-    return False
-
-  def is_action_possible_old(self, action: int):
-    rotated_obs = self.rot_board_no_numpy(self.board, k = action)
-    for i in range(self.height):
-      row = rotated_obs[i]
-      #check if this row can be slided, if it can, return True
-      zero_found=False
-      for j in range(self.width):
-        if row[j] == 0:
-          zero_found=True
-        elif zero_found:
-          return True # There was a non zero after a zero so the row can be slided
-        
-        if j < self.width - 1 and row[j] == row[j+1] and row[j] != 0:
-          return True # 2 non-zero blocks can be merged
-
-    return False
+    return is_action_possible_cache(board_hashable, int(action))
 
   def possible_actions(self):
     possible_actions = []
@@ -393,49 +304,9 @@ class Base2048Env(gym.Env):
         tiles.append(4)
     return tiles
 
-
-  def _sample_tile_locations(self, board, count=1):
-    """Sample grid locations with no tile."""
-
-    zero_locs = np.argwhere(board == 0)
-    zero_indices = self.np_random.choice(
-        len(zero_locs), size=count)
-
-    zero_pos = zero_locs[zero_indices]
-
-    t = np.transpose(zero_pos)
-    
-    return t
-
-  def _sample_tile_locations_no_numpy(self, board, count=1):
-    """Sample grid locations with no tile."""
-
-    zero_locs = []
-    for i in range(self.height):
-      for j in range(self.width):
-        if board[i][j] == 0:
-          zero_locs.append([i,j])
-    
-    zero_indices = []
-    while len(zero_indices) < count:
-      index = random.randint(0, len(zero_locs) - 1)
-      if index not in zero_indices:
-        zero_indices.append(index)
-
-    t = [[],[]]
-    for index in zero_indices:
-      t[0].append(zero_locs[index][0])
-      t[1].append(zero_locs[index][1])
-
-    return t
-
+  
   def _place_random_tiles(self, board, count=1):
     
-    #tiles = self._sample_tiles_no_numpy(count)
-    #tile_locs = self._sample_tile_locations_no_numpy(board, count)
-
-    #board[(tile_locs[0], tile_locs[1])] = tiles
-    #tile_locs[0] is the x indices and tile_locs[1] is the y indices
 
     # get eligible locations
     zero_locs = []
@@ -462,62 +333,47 @@ class Base2048Env(gym.Env):
         else:
           tile = 4
       self.board[zero_locs[index][0]][zero_locs[index][1]] = tile
-        
+
+  def _place_random_single_tile(self, board):
+    # quicker than the adaptable version with the lists ...
+
+    # get eligible locations
+    zero_locs = []
+    for i in range(self.height):
+      for j in range(self.width):
+        if board[i][j] == 0:
+          zero_locs.append([i,j])
+    assert len(zero_locs) > 0, "Board is full."
+
+    # sample locations
+    
+    index = random.randint(0, len(zero_locs) - 1)
+   
+    if self.only_2s:
+      tile = 2
+    else:
+      if random.random() < 0.9:
+        tile = 2
+      else:
+        tile = 4
+    self.board[zero_locs[index][0]][zero_locs[index][1]] = tile 
+
+    # definitely not terminated if 2 or more empty tiles before placing
+    return len(zero_locs) >= 2
   
   def pad(self, result_row):
     for _ in range(self.width - len(result_row)):
       result_row.append(0)
     return result_row
-  
-  def new_extract_nonzero(self, row):
-    result = []
-    for i in row:
-      if i != 0:
-        result.append(i)
-    return result
-  
 
+  
   def row_unequal(self, row, rowc):
     for i in range(self.width):
       if row[i] != rowc[i]:
         return True
     return False
-    
-  def _slide_left_and_merge(self, board):
-    # new is faster (cumtime)
-    # 20000    0.230    0.000    0.993    0.000 env.py:449(_slide_left_and_merge_old)
-    # 20000    0.266    0.000    0.921    0.000 env.py:493(_slide_left_and_merge_new)
- 
-    #core_old, result_board_old, changed_old = self._slide_left_and_merge_old(board)
-    score_new, result_board_new, changed_new = self._slide_left_and_merge_new(board)
-
-    #assert np.array_equal(result_board_old, result_board_new), "old and new method should return the same board"
-    #assert changed_old == changed_new, "old and new method should return the same changed value"
-    #assert score_old == score_new, "old and new method should return the same score"
-
-    return score_new, result_board_new, changed_new
-
-  def _slide_left_and_merge_old(self, board):
-    """Slide tiles on a grid to the left and merge."""
-
-    result = []
-
-    merges = []
-    changed = False
-    for row in board:
-      rowc = self.new_extract_nonzero(row)
-      merges_, result_row = self._try_merge(rowc)
-      merges.extend(merges_)
-      nrow = self.pad(result_row)
-      result.append(nrow)
-      if not changed and (len(merges) > 0 or self.row_unequal(row, nrow)):
-        changed = True
-
-    # result board anders bauen?
-    result_board = np.array(result, dtype=np.int64)
-
-    
-
+  
+  def get_reward(self, merges, result_board, changed):
     if self.reward_scheme == self.REWARD_SCHEME_MAX_MERGE:
       score = max(merges) if len(merges)>0 else 0
     elif self.reward_scheme == self.REWARD_SCHEME_MERGE_COUNTS or self.reward_scheme == self.REWARD_SCHEME_MERGE_COUNTS_ENCOURAGE_EMPTY:
@@ -535,13 +391,12 @@ class Base2048Env(gym.Env):
     if self.reward_scheme == self.REWARD_SCHEME_ENCOURAGE_EMPTY or self.reward_scheme == self.REWARD_SCHEME_MERGE_COUNTS_ENCOURAGE_EMPTY:
       score += result_board.size - np.count_nonzero(result_board)
 
-    if self.punish_illegal_move and np.array_equal(board, result_board):
+    if self.punish_illegal_move and changed == False:
       score = -1
       #moves without any changes
+    return score
 
-    return score, result_board, changed
-  
-  def _slide_left_and_merge_new(self, board):
+  def _slide_left_and_merge(self, board):
     """Slide tiles on a grid to the left and merge."""
 
     result_board = np.zeros((self.width, self.height), dtype=np.int64)
@@ -549,39 +404,165 @@ class Base2048Env(gym.Env):
     merges = []
     changed = False
     for i, row in enumerate(board):
-      rowc = self.new_extract_nonzero(row)
-      merges_, result_row = self._try_merge(rowc)
-      merges.extend(merges_)
-      nrow = self.pad(result_row)
-      result_board[i] = nrow
-      if not changed and (len(merges) > 0 or self.row_unequal(row, nrow)):
-        changed = True
+      # zeile
 
-    
+      pos_traverse , pos_new = 0, 0
 
-    if self.reward_scheme == self.REWARD_SCHEME_MAX_MERGE:
-      score = max(merges) if len(merges)>0 else 0
-    elif self.reward_scheme == self.REWARD_SCHEME_MERGE_COUNTS or self.reward_scheme == self.REWARD_SCHEME_MERGE_COUNTS_ENCOURAGE_EMPTY:
-      score = len(merges)
-    elif self.reward_scheme == self.REWARD_SCHEME_TRIPLET:
-      score = sum(merges)
-      if score > 0:
-        score = 1
-      if score < 0:
-        score = -1
-    else:
-      #default score
-      score = sum(merges)
+      while pos_traverse < self.width:
+        offset = 1
+        while pos_traverse < self.width and row[pos_traverse] == 0:
+          pos_traverse += 1
+        while pos_traverse + offset < self.width and row[pos_traverse + offset] == 0:
+          offset += 1
 
-    if self.reward_scheme == self.REWARD_SCHEME_ENCOURAGE_EMPTY or self.reward_scheme == self.REWARD_SCHEME_MERGE_COUNTS_ENCOURAGE_EMPTY:
-      score += result_board.size - np.count_nonzero(result_board)
+        if pos_traverse + offset < self.width and row[pos_traverse] == row[pos_traverse + offset] and row[pos_traverse] != 0:
+          # merge
+          result_board[i][pos_new] = row[pos_traverse] * 2
+          merges.append(row[pos_traverse] * 2)
+          pos_traverse += offset + 1
+          changed = True
+        elif pos_traverse < self.width and row[pos_traverse] != 0:
+          result_board[i][pos_new] = row[pos_traverse]
+          if pos_traverse != pos_new:
+            changed = True
+          pos_traverse += offset
+        pos_new += 1
 
-    if self.punish_illegal_move and np.array_equal(board, result_board):
-      score = -1
-      #moves without any changes
+
+    score = self.get_reward(merges, result_board, changed)
+
+    #print(f'new board: {result_board}')
+    #print(f'changed: {changed}')
 
     return score, result_board, changed
   
+  def _slide_up_and_merge(self, board):
+    """Slide tiles on a grid to the left and merge."""
+
+    result_board = np.zeros((self.width, self.height), dtype=np.int64)
+
+    merges = []
+    changed = False
+    for i in range(self.width):
+      # column
+      column = board[:,i]
+
+      pos_traverse , pos_new = 0, 0
+
+      while pos_traverse < self.height:
+        offset = 1
+        while pos_traverse < self.height and column[pos_traverse] == 0:
+          pos_traverse += 1
+        while pos_traverse + offset < self.height and column[pos_traverse + offset] == 0:
+          offset += 1
+
+        if pos_traverse + offset < self.height and column[pos_traverse] == column[pos_traverse + offset] and column[pos_traverse] != 0:
+          # merge
+          result_board[pos_new][i] = column[pos_traverse] * 2
+          merges.append(column[pos_traverse] * 2)
+          pos_traverse += offset + 1
+          changed = True
+        elif pos_traverse < self.height and column[pos_traverse] != 0:
+          result_board[pos_new][i] = column[pos_traverse]
+          if pos_traverse != pos_new:
+            changed = True
+          pos_traverse += offset
+        pos_new += 1
+
+
+    score = self.get_reward(merges, result_board, changed)
+
+    #print(f'new board: {result_board}')
+    #print(f'changed: {changed}')
+
+    return score, result_board, changed
+  
+  def _slide_right_and_merge(self, board):
+    """Slide tiles on a grid to the left and merge."""
+
+    result_board = np.zeros((self.width, self.height), dtype=np.int64)
+
+    merges = []
+    changed = False
+    for i, row in enumerate(board):
+      # zeile
+
+      pos_traverse , pos_new = self.width -1, self.width -1
+
+      while pos_traverse >= 0:
+        offset = -1
+        while pos_traverse >= 0 and row[pos_traverse] == 0:
+          pos_traverse -= 1
+        while pos_traverse + offset >= 0 and row[pos_traverse + offset] == 0:
+          offset -= 1
+
+        if pos_traverse + offset >= 0 and row[pos_traverse] == row[pos_traverse + offset] and row[pos_traverse] != 0:
+          # merge
+          result_board[i][pos_new] = row[pos_traverse] * 2
+          merges.append(row[pos_traverse] * 2)
+          #print(f'pos_traverse: {pos_traverse}, offset: {offset}, row: {row}')
+          pos_traverse += offset - 1
+          #print(f'pos traverse after: {pos_traverse}')
+          changed = True
+        elif pos_traverse >= 0 and row[pos_traverse] != 0:
+          result_board[i][pos_new] = row[pos_traverse]
+          if pos_traverse != pos_new:
+            changed = True
+          #print(f'2 pos_traverse: {pos_traverse}, offset: {offset}, row: {row}')
+          pos_traverse += offset
+          
+          #print(f'2 pos traverse after: {pos_traverse}')
+        pos_new -= 1
+
+
+    score = self.get_reward(merges, result_board, changed)
+
+    #print(f'new board: {result_board}')
+    #print(f'changed: {changed}')
+
+    return score, result_board, changed
+
+  def _slide_down_and_merge(self, board):
+    """Slide tiles on a grid to the left and merge."""
+
+    result_board = np.zeros((self.width, self.height), dtype=np.int64)
+
+    merges = []
+    changed = False
+    for i in range(self.width):
+      # spalte
+      column = board[:,i]
+
+      pos_traverse , pos_new = self.height -1, self.height -1
+
+      while pos_traverse >= 0:
+        offset = -1
+        while pos_traverse >= 0 and column[pos_traverse] == 0:
+          pos_traverse -= 1
+        while pos_traverse + offset >= 0 and column[pos_traverse + offset] == 0:
+          offset -= 1
+
+        if pos_traverse + offset >= 0 and column[pos_traverse] == column[pos_traverse + offset] and column[pos_traverse] != 0:
+          # merge
+          result_board[pos_new][i] = column[pos_traverse] * 2
+          merges.append(column[pos_traverse] * 2)
+          pos_traverse += offset - 1
+          changed = True
+        elif pos_traverse >= 0 and column[pos_traverse] != 0:
+          result_board[pos_new][i] = column[pos_traverse]
+          if pos_traverse != pos_new:
+            changed = True
+          pos_traverse += offset
+        pos_new -= 1
+
+
+    score = self.get_reward(merges, result_board, changed)
+
+    #print(f'new board: {result_board}')
+    #print(f'changed: {changed}')
+
+    return score, result_board, changed
+
   def _try_merge(self, row):
     merges = []
     result_row = []

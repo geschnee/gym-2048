@@ -70,7 +70,7 @@ rect_width=100
 text_x = render_x+4*rect_width + 50
 
 
-engine = env.Base2048Env(reward_scheme=scoring_metric)
+engine = env.Base2048Env(reward_scheme=scoring_metric, full_info=True)
 
 go = True
 action = None
