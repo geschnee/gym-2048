@@ -431,9 +431,6 @@ class Base2048Env(gym.Env):
 
     score = self.get_reward(merges, result_board, changed)
 
-    #print(f'new board: {result_board}')
-    #print(f'changed: {changed}')
-
     return score, result_board, changed
   
   def _slide_up_and_merge(self, board):
@@ -472,9 +469,6 @@ class Base2048Env(gym.Env):
 
     score = self.get_reward(merges, result_board, changed)
 
-    #print(f'new board: {result_board}')
-    #print(f'changed: {changed}')
-
     return score, result_board, changed
   
   def _slide_right_and_merge(self, board):
@@ -500,25 +494,18 @@ class Base2048Env(gym.Env):
           # merge
           result_board[i][pos_new] = row[pos_traverse] * 2
           merges.append(row[pos_traverse] * 2)
-          #print(f'pos_traverse: {pos_traverse}, offset: {offset}, row: {row}')
           pos_traverse += offset - 1
-          #print(f'pos traverse after: {pos_traverse}')
           changed = True
         elif pos_traverse >= 0 and row[pos_traverse] != 0:
           result_board[i][pos_new] = row[pos_traverse]
           if pos_traverse != pos_new:
             changed = True
-          #print(f'2 pos_traverse: {pos_traverse}, offset: {offset}, row: {row}')
           pos_traverse += offset
           
-          #print(f'2 pos traverse after: {pos_traverse}')
         pos_new -= 1
 
 
     score = self.get_reward(merges, result_board, changed)
-
-    #print(f'new board: {result_board}')
-    #print(f'changed: {changed}')
 
     return score, result_board, changed
 
@@ -557,9 +544,6 @@ class Base2048Env(gym.Env):
 
 
     score = self.get_reward(merges, result_board, changed)
-
-    #print(f'new board: {result_board}')
-    #print(f'changed: {changed}')
 
     return score, result_board, changed
 
