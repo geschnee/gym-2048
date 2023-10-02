@@ -27,7 +27,7 @@ jobs:
         python gym_fix_021/setup.py install --user
       # https://github.com/openai/gym/issues/3176
       # https://github.com/openai/gym/issues/3200
-      # fuck this shit, it is not installe proerly (ModuleNotFound Gym)
+      # fuck this shit, it is not installed properly (ModuleNotFound Gym)
 
       # pip install --upgrade setuptools==66
       # pip install --upgrade gym==0.21

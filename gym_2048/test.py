@@ -1,15 +1,8 @@
-
-
-import re
 import env
 import numpy as np
-
 import pytest
-
 from gym.utils.env_checker import check_env
-
-from gym_2048.env import Base2048Env#, is_action_possible_cache
-
+from gym_2048.env import Base2048Env
 from gym_2048.is_possible import is_action_possible_cache
 
 
@@ -31,8 +24,6 @@ def test_cache_hit():
 
     assert hits_after == hits + 1, f'Cache hit failed'
     assert p == p2, f'Cache hit failed'
-    #assert False
-    
 
 def test_is_done():
     print('\ntest_is_done')
@@ -40,11 +31,7 @@ def test_is_done():
 
     e.render()
 
-    print(f'e.board {e.board}')
-
     done_board = get_impossible_board()
-    print(f'done_board.all() {done_board.all()}')
-
 
     for r in reward_schemes():
         print(f'testing Reward scheme {r}')
@@ -57,8 +44,6 @@ def test_is_done():
         print(f'is_done? {e.is_done()}')
         assert e.is_done(), f'Failed {r}'
         assert np.array_equal(e.board, get_impossible_board()), f'Failed {r}'
-
-
 
 def test_is_any_action_possible_done_board():
     print('\ntest_is_any_action_possible_done_board')
@@ -74,9 +59,6 @@ def test_is_any_action_possible_done_board():
             assert not e.is_action_possible(i), f'Failed {r}'
         
         assert np.array_equal(e.board, get_impossible_board()), f'Failed {r}'
-
-
-
 
 def test_everything_impossible_except_left():
     print(f'\ntest_everything_impossible_except_left')
@@ -103,8 +85,6 @@ def test_everything_impossible_except_left():
             
             assert np.array_equal(e.board, b), f'Failed {r}'
 
-
-
 def test_everything_possible_except_left():
     print('\ntest_everything_possible_except_left')
     e = env.Base2048Env()
@@ -114,7 +94,6 @@ def test_everything_possible_except_left():
     for r in reward_schemes():
         print(f'testing Reward scheme {r}')
         e.reward_scheme = r
-
 
         for b in boards:
             e.board = np.copy(b)
@@ -140,7 +119,6 @@ def test_everything_left_right_possible():
     for r in reward_schemes():
         print(f'testing Reward scheme {r}')
         e.reward_scheme = r
-
 
         for b in boards:
             e.board = np.copy(b)
@@ -168,7 +146,6 @@ def test_everything_left_up_possible():
         print(f'testing Reward scheme {r}')
         e.reward_scheme = r
 
-
         for b in boards:
             e.board = np.copy(b)
             e.render()
@@ -184,12 +161,6 @@ def test_everything_left_up_possible():
                 print(f'Action {env.Base2048Env.action_names()[i]} possible {e.is_action_possible(i)}')
 
             assert np.array_equal(e.board, b), f'Failed {r}'
-
-#@pytest.mark.skip(reason="show how to skip test")
-#def test_fail():
-#    print('\ntest_fail')
-#    assert False
-
 
 def test_when_impossible_action_then_raise_error():
     print(f'\ntest_when_impossible_action_then_raise_error')
@@ -224,14 +195,11 @@ def test_possible_action_change():
 
 
 #helper functions
-
 def get_impossible_board():
     return np.array([[2, 4, 8, 16], [16, 8, 4, 2], [2, 4, 8, 16], [16, 8, 4, 2]])
 
 def reward_schemes():
     return env.Base2048Env.get_reward_schemes()
-
-
 
 def test_numpy_rot90():
     # this test checks if np.rot90(board, k=i) modifies the board

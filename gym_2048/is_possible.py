@@ -1,19 +1,11 @@
 
-from functools import lru_cache, cache
+from functools import lru_cache
 
-# TODO cython für legal actions
-# wie https://github.com/opendilab/LightZero/blob/eccda941879c37b7ebdfb5548192000bcfade0e9/zoo/board_games/tictactoe/envs/legal_actions_cython.pyx
+# TODO cython for legal actions
+# https://github.com/opendilab/LightZero/blob/eccda941879c37b7ebdfb5548192000bcfade0e9/zoo/board_games/tictactoe/envs/legal_actions_cython.pyx
 
-# 
-    
-
-@lru_cache(maxsize=512)
-#@cache
+@lru_cache(maxsize=4096)
 def is_action_possible_cache(board, action):
-
-  #print(f'cache miss for board_action {board_action}')
-  #board = board_action[0]
-  #action = board_action[1]
   assert type(action) == int, f'Action must be an integer, not {type(action)}, we want to be hashable, not tensor'
 
   height = 4

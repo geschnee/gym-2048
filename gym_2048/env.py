@@ -7,7 +7,6 @@ import random
 
 from gym_2048.is_possible import is_action_possible_cache
 
-
 class Base2048Env(gym.Env):
   metadata = {
       'render_modes': ['human', 'dict'],
@@ -56,7 +55,6 @@ class Base2048Env(gym.Env):
     self.punish_illegal_move = punish_illegal_move
     self.full_info = full_info
     
-
     self.observation_space = spaces.Box(low=0,
                                         high=2**14,
                                         shape=(self.width, self.height),
@@ -96,20 +94,8 @@ class Base2048Env(gym.Env):
         for j in range(self.width):
           newboard[i][j] = board[4 - j - 1][i]
       return newboard
-
-  def old_move(self, action: int):
-    raise NotImplementedError("This method is not used anymore, it is only kept for reference")
-
-    # Align board action with left action
-    rotated_obs = self.rot_board_no_numpy(self.board, k = action)
-    reward, updated_obs, changed = self._slide_l_and_merge(rotated_obs)
-    board = self.board
-    if changed:
-      #update the board only if a change resulted from the action
-      board = self.rot_board_no_numpy(updated_obs, k = 4 - action)
-    return reward, board, changed
   
-  def new_move(self, action: int):
+  def move(self, action: int):
     # Align board action with left action
     if action == 0:
       reward, updated_obs, changed = self._slide_left_and_merge(self.board)
@@ -127,7 +113,7 @@ class Base2048Env(gym.Env):
   def step(self, action: int):
     """Perform step, return observation, reward, terminated, false, info."""
     
-    reward, board, changed = self.new_move(action)
+    reward, board, changed = self.move(action)
 
     self.board = board
 
@@ -142,22 +128,18 @@ class Base2048Env(gym.Env):
     else:
       terminated = self.is_done()
 
-    # board.copy() is returned because of an error/incompatibility with Salina https://github.com/facebookresearch/salina
-    # since we do not use salina anymore, we try without board copy
-
     if terminated or self.full_info:
       mx = self.board_max(self.board)
       info_dict = {"max_block" : mx, "end_value": self.board_sum(self.board), "is_success": mx >= 2048}
     else:
-      # TODO is it okay like this for sb3?
       info_dict = {}
 
 
     return self.board, reward, terminated, info_dict
-    # TODO change the returned tuple to match the new gym step API
+    # TODO change the returned tuple to match the new gymnasium step API
     # https://www.gymlibrary.dev/content/api/#stepping
     # it should then return this:
-    # return self.board.copy(), reward, terminated, False, {"max_block" : np.max(self.board), "end_value": np.sum(self.board), "is_success": np.max(self.board) >= 2048}
+    # return self.board, reward, terminated, False, {"max_block" : np.max(self.board), "end_value": np.sum(self.board), "is_success": np.max(self.board) >= 2048}
     # stable-baselines3 is not ready for this change yet
 
   def board_max(self, board):
@@ -169,7 +151,6 @@ class Base2048Env(gym.Env):
           mx = board[i][j]
     return mx
   
-
   def board_sum(self, board):
     # quicker than np.sum(board)
     sum = 0
@@ -184,39 +165,11 @@ class Base2048Env(gym.Env):
       possible = is_action_possible_cache(board_hashable, int(action))
       if possible:
         return False
-
     return True
   
-  def _merge_possible(self, board):
-    raise NotImplementedError("This method is not used anymore, it is only kept for reference")
-
-    # this function just checks if two adjacent tiles have the same value (and thus can be merged)
-    # this method is only intended for the check of is_done when the entire board is full
-
-    # this method is much faster than the _slide_left_and_merge method, which was used to check this before
-
-    #   1143205    1.438    0.000   27.043    0.000 env.py:139(is_done)
-    #   374688    3.988    0.000   18.043    0.000 env.py:176(_slide_left_and_merge)
-    #   374688    2.163    0.000    2.292    0.000 env.py:159(_merge_possible)
-
-    changed = False
-    for row in board:
-      
-      assert len(row) == self.width
-      for i in range(self.width - 1):
-        if row[i] == 0:
-          raise ValueError("row should not contain 0, we already checked if there is a zero anywhere in the board and there is none, see is_done")
-
-        if row[i] == row[i + 1]:
-          changed = True
-          return changed
-        
-    return changed
-
-
   def reset(self, seed=None, **kwargs):
     """Place 2 tiles on empty board."""
-    #super().reset(seed=seed)
+    #super().reset(seed=seed) # gynasium migration guide https://gymnasium.farama.org/content/migration-guide/
 
     self.board = np.zeros((self.width, self.height), dtype=np.int64)
     self._place_random_tiles(self.board, count=2)
@@ -287,27 +240,8 @@ class Base2048Env(gym.Env):
                                   p=probs)
     return tiles.tolist()
   
-  def _sample_tiles_no_numpy(self, count = 1):
-    
-    if self.only_2s:
-      return [2] * count
-    if count == 1:
-      if random.random() < 0.9:
-        return [2]
-      else:
-        return [4]
-    tiles = []
-    for i in range(count):
-      if random.random() < 0.9:
-        tiles.append(2)
-      else:
-        tiles.append(4)
-    return tiles
-
-  
   def _place_random_tiles(self, board, count=1):
     
-
     # get eligible locations
     zero_locs = []
     for i in range(self.height):
@@ -335,7 +269,7 @@ class Base2048Env(gym.Env):
       self.board[zero_locs[index][0]][zero_locs[index][1]] = tile
 
   def _place_random_single_tile(self, board):
-    # quicker than the adaptable version with the lists ...
+    # quicker than the adaptable version _place_random_tiles
 
     # get eligible locations
     zero_locs = []
@@ -345,8 +279,7 @@ class Base2048Env(gym.Env):
           zero_locs.append([i,j])
     assert len(zero_locs) > 0, "Board is full."
 
-    # sample locations
-    
+    # sample location
     index = random.randint(0, len(zero_locs) - 1)
    
     if self.only_2s:
@@ -358,7 +291,7 @@ class Base2048Env(gym.Env):
         tile = 4
     self.board[zero_locs[index][0]][zero_locs[index][1]] = tile 
 
-    # definitely not terminated if 2 or more empty tiles before placing
+    # definitely not terminated if 2 or more empty tiles before placing one tile
     return len(zero_locs) >= 2
   
   def pad(self, result_row):
@@ -366,7 +299,6 @@ class Base2048Env(gym.Env):
       result_row.append(0)
     return result_row
 
-  
   def row_unequal(self, row, rowc):
     for i in range(self.width):
       if row[i] != rowc[i]:
@@ -394,7 +326,9 @@ class Base2048Env(gym.Env):
     if self.punish_illegal_move and changed == False:
       score = -1
       #moves without any changes
-    return score
+
+    #assert type(score) == float, f"score is not a float: {score} {type(score)}"
+    return np.float32(score)
 
   def _slide_left_and_merge(self, board):
     """Slide tiles on a grid to the left and merge."""
@@ -504,7 +438,6 @@ class Base2048Env(gym.Env):
           
         pos_new -= 1
 
-
     score = self.get_reward(merges, result_board, changed)
 
     return score, result_board, changed
@@ -542,31 +475,10 @@ class Base2048Env(gym.Env):
           pos_traverse += offset
         pos_new -= 1
 
-
     score = self.get_reward(merges, result_board, changed)
 
     return score, result_board, changed
-
-  def _try_merge(self, row):
-    merges = []
-    result_row = []
-
-    i = 1
-    while i < len(row):
-      if row[i] == row[i - 1]:
-        merges.append(row[i] + row[i - 1])
-        result_row.append(row[i] + row[i - 1])
-        i += 2
-      else:
-        result_row.append(row[i - 1])
-        i += 1
-
-    if i == len(row):
-      result_row.append(row[i - 1])
-
-    return merges, result_row
   
-
   def flip_board_no_numpy(self, board):
     # flip board horizontally
     new_board = []
