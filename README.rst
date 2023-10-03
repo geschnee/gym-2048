@@ -29,6 +29,8 @@ Pip
 From cloned repository
 ^^^^^^^^^^^^^^^^^^^^^^
 
+`GitHub Page <https://github.com/geschnee/gym-2048>`_
+
 .. code:: shell
 
     python setup.py install
