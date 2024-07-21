@@ -43,9 +43,11 @@ class Base2048Env(gymnasium.Env):
   def get_reward_schemes():
     return [Base2048Env.REWARD_SCHEME_CLASSIC, Base2048Env.REWARD_SCHEME_ENCOURAGE_EMPTY,Base2048Env.REWARD_SCHEME_MERGE_COUNTS_ENCOURAGE_EMPTY, Base2048Env.REWARD_SCHEME_MERGE_COUNTS, Base2048Env.REWARD_SCHEME_TRIPLET, Base2048Env.REWARD_SCHEME_MAX_MERGE]
 
-  def __init__(self, width=4, height=4, reward_scheme=REWARD_SCHEME_CLASSIC, only_2s=False, punish_illegal_move=True, full_info=False):
+  def __init__(self, width=4, height=4, render_mode = 'dict', reward_scheme=REWARD_SCHEME_CLASSIC, only_2s=False, punish_illegal_move=True, full_info=False):
     self.width = width
     self.height = height
+
+    self.render_mode = render_mode
 
     assert reward_scheme in self.get_reward_schemes()
     self.reward_scheme = reward_scheme
@@ -129,7 +131,11 @@ class Base2048Env(gymnasium.Env):
     info_dict = self.getInfoDict()
     
 
-    return self.board, reward, terminated, False, {"max_block" : np.max(self.board), "end_value": np.sum(self.board), "is_success": np.max(self.board) >= 2048}
+    if self.render_mode == 'human':
+      for row in self.board.tolist():
+        print(' \t'.join(map(str, row)))
+
+    return self.board, reward, terminated, False, info_dict
 
 
   def board_max(self, board):
@@ -192,11 +198,12 @@ class Base2048Env(gymnasium.Env):
   def return_board(self):
     return self.board.copy()
 
-  def render(self, mode='human'):
-    if mode == 'human':
-      for row in self.board.tolist():
-        print(' \t'.join(map(str, row)))
-    if mode == 'dict':
+  def render(self):
+    if self.render_mode == 'human':
+      # rendering is done in step
+      return
+    
+    if self.render_mode == 'dict':
       board = self.board
       dictionary = dict()
       dictionary[
