@@ -21,20 +21,6 @@ jobs:
       uses: actions/setup-python@v3
       with:
         python-version: "3.10"
-    - name: Install Gym 0.21.0
-      run: |
-        git clone https://github.com/rlberry-py/gym_fix_021.git
-        python gym_fix_021/setup.py install --user
-      # https://github.com/openai/gym/issues/3176
-      # https://github.com/openai/gym/issues/3200
-      # fuck this shit, it is not installed properly (ModuleNotFound Gym)
-
-      # pip install --upgrade setuptools==66
-      # pip install --upgrade gym==0.21
-    - name: Print modules
-      run: |
-        python -c 'help("modules")'
-
     - name: Install dependencies
       run: |
         pip install flake8 pytest
@@ -48,6 +34,7 @@ jobs:
       working-directory: ./gym_2048
       run: |
         python -m pytest test.py
+        
     - name: Install wheel
       run: |
         python -m pip install -U wheel
