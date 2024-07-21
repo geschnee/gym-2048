@@ -128,12 +128,9 @@ class Base2048Env(gym.Env):
     else:
       terminated = self.is_done()
 
-    if terminated or self.full_info:
-      mx = self.board_max(self.board)
-      info_dict = {"max_block" : mx, "end_value": self.board_sum(self.board), "is_success": mx >= 2048}
-    else:
-      info_dict = {}
-
+    mx = self.board_max(self.board)
+    info_dict = {"max_block" : mx, "end_value": self.board_sum(self.board), "is_success": mx >= 2048}
+    
 
     return self.board, reward, terminated, info_dict
     # TODO change the returned tuple to match the new gymnasium step API
