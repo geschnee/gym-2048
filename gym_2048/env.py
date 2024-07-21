@@ -1,13 +1,11 @@
 import numpy as np
-import gym
-import gym.spaces as spaces
-from gym.utils import seeding
-
+import gymnasium
+import gymnasium.spaces as spaces
 import random
 
 from gym_2048.is_possible import is_action_possible_cache
 
-class Base2048Env(gym.Env):
+class Base2048Env(gymnasium.Env):
   metadata = {
       'render_modes': ['human', 'dict'],
   }
@@ -65,12 +63,7 @@ class Base2048Env(gym.Env):
     self.board = None
     self.np_random = None
 
-    self.seed()
     self.reset()
-
-  def seed(self, seed=None):
-    self.np_random, seed = seeding.np_random(seed)
-    return [seed]
 
   def rot_board_no_numpy(self, board, k):
     k=k % 4
@@ -110,6 +103,11 @@ class Base2048Env(gym.Env):
 
     return reward, updated_obs, changed
 
+  def getInfoDict(self):
+    mx = self.board_max(self.board)
+    info_dict = {"max_block" : mx, "end_value": self.board_sum(self.board), "is_success": mx >= 2048}
+    return info_dict
+
   def step(self, action: int):
     """Perform step, return observation, reward, terminated, false, info."""
     
@@ -128,16 +126,11 @@ class Base2048Env(gym.Env):
     else:
       terminated = self.is_done()
 
-    mx = self.board_max(self.board)
-    info_dict = {"max_block" : mx, "end_value": self.board_sum(self.board), "is_success": mx >= 2048}
+    info_dict = self.getInfoDict()
     
 
-    return self.board, reward, terminated, info_dict
-    # TODO change the returned tuple to match the new gymnasium step API
-    # https://www.gymlibrary.dev/content/api/#stepping
-    # it should then return this:
-    # return self.board, reward, terminated, False, {"max_block" : np.max(self.board), "end_value": np.sum(self.board), "is_success": np.max(self.board) >= 2048}
-    # stable-baselines3 is not ready for this change yet
+    return self.board, reward, terminated, False, {"max_block" : np.max(self.board), "end_value": np.sum(self.board), "is_success": np.max(self.board) >= 2048}
+
 
   def board_max(self, board):
     # quicker than np.max(board)
@@ -166,7 +159,7 @@ class Base2048Env(gym.Env):
   
   def reset(self, seed=None, **kwargs):
     """Place 2 tiles on empty board."""
-    #super().reset(seed=seed) # gynasium migration guide https://gymnasium.farama.org/content/migration-guide/
+    super().reset(seed=seed) # gynasium migration guide https://gymnasiumnasium.farama.org/content/migration-guide/
 
     self.board = np.zeros((self.width, self.height), dtype=np.int64)
     self._place_random_tiles(self.board, count=2)
@@ -175,7 +168,7 @@ class Base2048Env(gym.Env):
       # return_info parameter is included and true
       return self.board, {"max_block" : self.board_max(self.board), "end_value": self.board_sum(self.board)}
 
-    return self.board
+    return self.board, self.getInfoDict()
   
   def is_action_possible(self, action: int):
     # we do not need the rotation, profiling shows a large proportion of time is spent in rot_board_no_numpy

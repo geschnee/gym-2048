@@ -1,8 +1,6 @@
 
 from functools import lru_cache
 
-# TODO cython for legal actions
-# https://github.com/opendilab/LightZero/blob/eccda941879c37b7ebdfb5548192000bcfade0e9/zoo/board_games/tictactoe/envs/legal_actions_cython.pyx
 
 @lru_cache(maxsize=4096)
 def is_action_possible_cache(board, action):
